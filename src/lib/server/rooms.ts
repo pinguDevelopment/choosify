@@ -9,6 +9,8 @@ import { currentAccount, selectCrew } from "./account";
 import { setCrewCookie, setParticipantCookie, currentCrew, type Participant, type Room } from "./session";
 import { BUCKETS, mixBuckets, pickCandidates, randomPage, releaseYear, personalOrder, streamableOn, type Choice, type TmdbMovie } from "../candidates";
 import { runoffResult, tiedLeaders } from "../ranking";
+import { averageStars, EMPTY_TASTE, tasteBoost, tasteRerank, tasteSummary, type Taste } from "../taste";
+import { crewRatings, loadCrewTaste, rateLink } from "./ratings";
 
 export { AppError };
 
@@ -108,8 +110,11 @@ const ROOM_SIZE = 30;
  * Kandidaten aus vier Töpfen (beliebt, top bewertet, Klassiker, Geheimtipps) mit zufälligen Seiten,
  * abwechselnd gemischt. Danach wird jeder Film einzeln geprüft: Er muss gerade bei einem der
  * gewählten Dienste im Abo, kostenlos oder mit Werbung laufen. Reine Kino- oder Leihfilme fliegen raus.
+ *
+ * Hat die Crew schon Filme bewertet, rücken Filme mit Genres und Tags, die ihr gefallen haben,
+ * etwas nach vorne (und umgekehrt). Die Mischung bleibt dabei erhalten.
  */
-async function findCandidates(room: Room, genreIds: number[], selections: number[][], watched: number[]) {
+async function findCandidates(room: Room, genreIds: number[], selections: number[][], watched: number[], taste: Taste) {
   // "Sonstige / eigene Quelle": kein Dienst-Filter und keine Prüfung, nur die Kino-Sperre bleibt.
   // Ohne Auswahl sonst: alle bekannten Dienste, damit trotzdem nur Streambares kommt.
   const providerIds = room.any_source
@@ -125,7 +130,9 @@ async function findCandidates(room: Room, genreIds: number[], selections: number
       const page = randomPage(bucket, first.totalPages);
       const more = page === 1 ? [] : (await discover({ ...base, bucket, page })).results;
       // Zufällige Seite zuerst, damit nicht jede Runde dieselben Filme bringt
-      return pickCandidates([...more, ...first.results], selections, watched, ROOM_SIZE);
+      return pickCandidates([...more, ...first.results], selections, watched, ROOM_SIZE, (m) =>
+        tasteBoost(taste, m.genre_ids),
+      );
     }),
   );
   // Pro Film ein Abruf: Verfügbarkeit, Schlagwörter (für die Tags) und Laufzeit
@@ -136,12 +143,22 @@ async function findCandidates(room: Room, genreIds: number[], selections: number
       return { ...m, details: null as MovieDetails | null };
     }
   };
-  if (room.any_source) return Promise.all(mixBuckets(lists, ROOM_SIZE).map(withDetails));
+  // Geschmack mit Genres und Tags (die Tags gibt es erst nach dem Detail-Abruf)
+  const byTaste = <T extends TmdbMovie & { details: MovieDetails | null }>(list: T[]) =>
+    taste.rated
+      ? tasteRerank(list, (m) =>
+          tasteBoost(taste, m.genre_ids, movieTags({ genreIds: m.genre_ids, keywords: m.details?.keywords, year: releaseYear(m.release_date), rating: m.vote_average })),
+        )
+      : list;
+  if (room.any_source) {
+    const mixed = mixBuckets(lists, taste.rated ? Math.round(ROOM_SIZE * 1.3) : ROOM_SIZE);
+    return byTaste(await Promise.all(mixed.map(withDetails))).slice(0, ROOM_SIZE);
+  }
   const mixed = mixBuckets(lists, Math.round(ROOM_SIZE * 1.6));
 
   const checked = await Promise.all(mixed.map(withDetails));
   // Ohne Details wissen wir nicht, ob er streambar ist: im Zweifel lieber weglassen
-  return checked.filter((m) => m.details && streamableOn(m.details.providers, providerIds).length > 0).slice(0, ROOM_SIZE);
+  return byTaste(checked.filter((m) => m.details && streamableOn(m.details.providers, providerIds).length > 0)).slice(0, ROOM_SIZE);
 }
 
 /** Host startet das Swipen: Kandidaten aus TMDB holen, Abspann-Filme rausfiltern. */
@@ -158,13 +175,15 @@ export async function startVoting(room: Room, me: Participant) {
   const genreIds = [...new Set(selections.flat())];
 
   let watched: number[] = [];
+  let taste = EMPTY_TASTE;
   if (room.crew_id) {
-    const { data, error: aErr } = await db().from("abspann").select("tmdb_id").eq("crew_id", room.crew_id);
+    const { data, error: aErr } = await db().from("abspann").select("tmdb_id, genre_ids, tags").eq("crew_id", room.crew_id);
     if (aErr) throw aErr;
     watched = (data ?? []).map((r) => r.tmdb_id);
+    taste = await loadCrewTaste(room.crew_id, data ?? []);
   }
 
-  const picked = await findCandidates(room, genreIds, selections, watched);
+  const picked = await findCandidates(room, genreIds, selections, watched, taste);
   if (picked.length === 0) {
     throw new AppError(422, "Keine passenden Filme gefunden, die gerade im Abo laufen. Wähle mehr Dienste oder Genres.");
   }
@@ -316,7 +335,7 @@ export async function roomState(room: Room, me: Participant | null) {
     me: me ? { name: me.name, isHost: me.is_host, genresDone: me.genres_done, genreIds: me.genre_ids } : null,
   };
   // Wer nicht beigetreten ist, sieht nur das Nötigste zum Beitreten.
-  if (!me) return { ...base, participants: [], movies: [], myVotes: {}, ranking: [], runoff: null, winner: null };
+  if (!me) return { ...base, participants: [], movies: [], myVotes: {}, ranking: [], runoff: null, winner: null, rateToken: null };
 
   const [{ data: movies, error: mErr }, { data: votes, error: vErr }] = await Promise.all([
     db()
@@ -336,7 +355,7 @@ export async function roomState(room: Room, me: Participant | null) {
     if (v.participant_id === me.id) myVotes[v.tmdb_id] = DB_TO_CHOICE[v.choice];
   }
 
-  const [ranking, runoff] = await Promise.all([loadRanking(room.id), runoffState(room, me)]);
+  const [ranking, runoff, rateToken] = await Promise.all([loadRanking(room.id), runoffState(room, me), winnerRateToken(room)]);
 
   return {
     ...base,
@@ -370,7 +389,21 @@ export async function roomState(room: Room, me: Participant | null) {
     ranking,
     runoff,
     winner: room.winner_tmdb_id,
+    rateToken,
   };
+}
+
+/** Bewertungslink für den Gewinner, sobald er im Abspann der Crew steht. */
+async function winnerRateToken(room: Room): Promise<string | null> {
+  if (room.status !== "done" || !room.winner_tmdb_id || !room.crew_id) return null;
+  const { data, error } = await db()
+    .from("abspann")
+    .select("tmdb_id")
+    .eq("crew_id", room.crew_id)
+    .eq("tmdb_id", room.winner_tmdb_id)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? rateLink(room.crew_id, room.winner_tmdb_id) : null;
 }
 
 async function loadRanking(roomId: string): Promise<RankingRow[]> {
@@ -411,25 +444,39 @@ export type RoomState = Awaited<ReturnType<typeof roomState>>;
 // ---- Abspann ----------------------------------------------------------------
 
 export async function listAbspann(crewId: string) {
-  const { data, error } = await db()
-    .from("abspann")
-    .select("tmdb_id, title, poster_path, release_year, watched_at")
-    .eq("crew_id", crewId)
-    .order("watched_at", { ascending: false })
-    .limit(500);
+  const [{ data, error }, ratings] = await Promise.all([
+    db()
+      .from("abspann")
+      .select("tmdb_id, title, poster_path, release_year, watched_at, genre_ids, tags")
+      .eq("crew_id", crewId)
+      .order("watched_at", { ascending: false })
+      .limit(500),
+    crewRatings(crewId),
+  ]);
   if (error) throw error;
-  return (data ?? []).map((r) => ({
-    tmdbId: r.tmdb_id,
-    title: r.title,
-    poster: posterUrl(r.poster_path, "w92"),
-    year: r.release_year,
-    watchedAt: r.watched_at,
-  }));
+  const rows = data ?? [];
+  const taste = await loadCrewTaste(crewId, rows);
+  return {
+    taste: { rated: taste.rated, ...tasteSummary(taste) },
+    movies: rows.map((r) => {
+      const list = ratings.get(r.tmdb_id) ?? [];
+      return {
+        tmdbId: r.tmdb_id,
+        title: r.title,
+        poster: posterUrl(r.poster_path, "w92"),
+        year: r.release_year,
+        watchedAt: r.watched_at,
+        average: averageStars(list.map((x) => x.stars)),
+        ratings: list,
+        rateToken: rateLink(crewId, r.tmdb_id),
+      };
+    }),
+  };
 }
 
 export async function addAbspann(
   crewId: string,
-  m: { tmdbId: number; title: string; posterPath: string | null; year: number | null },
+  m: { tmdbId: number; title: string; posterPath: string | null; year: number | null; genreIds: number[]; tags: string[] },
 ) {
   const { error } = await db().from("abspann").upsert({
     crew_id: crewId,
@@ -437,6 +484,8 @@ export async function addAbspann(
     title: m.title,
     poster_path: m.posterPath,
     release_year: m.year,
+    genre_ids: m.genreIds.slice(0, 20),
+    tags: m.tags.slice(0, 6),
   });
   if (error?.code === "P0001") throw new AppError(409, "Der Abspann ist voll");
   if (error) throw error;
@@ -452,7 +501,7 @@ export async function addWinnerToAbspann(room: Room, tmdbId: number) {
   if (!room.crew_id) return;
   const { data, error } = await db()
     .from("room_movies")
-    .select("tmdb_id, title, poster_path, release_year")
+    .select("tmdb_id, title, poster_path, release_year, genre_ids, tags")
     .eq("room_id", room.id)
     .eq("tmdb_id", tmdbId)
     .maybeSingle();
@@ -463,5 +512,7 @@ export async function addWinnerToAbspann(room: Room, tmdbId: number) {
     title: data.title,
     posterPath: data.poster_path,
     year: data.release_year,
+    genreIds: data.genre_ids ?? [],
+    tags: data.tags ?? [],
   });
 }

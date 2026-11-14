@@ -128,12 +128,15 @@ export function genreDemand(selections: number[][]): Map<number, number> {
  *  - Filme aus dem Abspann (schon gesehen) fliegen raus
  *  - Duplikate fliegen raus
  *  - Score = Summe der Nachfrage über die Genres des Films, danach TMDB-Bewertung
+ *  - optional `taste` (-1 bis +1, aus den Bewertungen der Crew): zählt so viel wie ein
+ *    Genre, das alle gewählt haben
  */
 export function pickCandidates(
   movies: TmdbMovie[],
   selections: number[][],
   watchedIds: Iterable<number>,
   limit = 30,
+  taste?: (m: TmdbMovie) => number,
 ): TmdbMovie[] {
   const watched = new Set(watchedIds);
   const demand = genreDemand(selections);
@@ -142,7 +145,9 @@ export function pickCandidates(
   for (const m of movies) {
     if (watched.has(m.id) || seen.has(m.id)) continue;
     seen.add(m.id);
-    const score = (m.genre_ids ?? []).reduce((s, g) => s + (demand.get(g) ?? 0), 0);
+    const score =
+      (m.genre_ids ?? []).reduce((s, g) => s + (demand.get(g) ?? 0), 0) +
+      (taste ? taste(m) * Math.max(1, selections.length) : 0);
     scored.push({ m, score });
   }
   scored.sort(
