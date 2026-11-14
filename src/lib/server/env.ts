@@ -5,7 +5,7 @@ import { z } from "zod";
 export const tmdbMock = process.env.TMDB_MOCK === "1" && process.env.NODE_ENV !== "production";
 
 const schema = z.object({
-  TMDB_READ_TOKEN: tmdbMock ? z.string().optional() : z.string().min(20),
+  TMDB_READ_TOKEN: tmdbMock ? z.string().optional() : z.string().min(32),
   SUPABASE_URL: z.url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
   APP_SECRET: z.string().min(32),

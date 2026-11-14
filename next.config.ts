@@ -1,8 +1,30 @@
 import type { NextConfig } from "next";
 
-// Grundlegende Security-Header. Die Content-Security-Policy wird in Schritt 4
-// (Security-Audit) mit Nonces verschärft.
+const isDev = process.env.NODE_ENV === "development";
+
+// Content-Security-Policy: nur eigene Skripte, Bilder nur von uns und TMDB,
+// Netzwerk nur zur eigenen API, kein Einbetten in fremde Seiten.
+// 'unsafe-inline' bei Skripten ist nötig, weil Next.js mit Cache Components
+// Inline-Skripte im statischen Shell ausliefert (Nonces würden das Prerendering abschalten).
+// React escaped alle Ausgaben und wir nutzen kein dangerouslySetInnerHTML, daher ist das Restrisiko gering.
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://image.tmdb.org",
+  "font-src 'self'",
+  `connect-src 'self'${isDev ? " ws:" : ""}`,
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "manifest-src 'self'",
+  ...(isDev ? [] : ["upgrade-insecure-requests"]),
+].join("; ");
+
 const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

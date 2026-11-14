@@ -6,4 +6,4 @@ export const POST = roomAction("finish", finishSchema, async ({ room, me, data }
   await finish(room, me, data.winnerTmdbId);
   if (data.addToAbspann && data.winnerTmdbId) await addWinnerToAbspann(room, data.winnerTmdbId);
   return Response.json({ ok: true });
-}, 10);
+}, 10, true);
