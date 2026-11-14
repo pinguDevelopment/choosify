@@ -117,7 +117,8 @@ export function CreateRoom() {
       </label>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-muted">
-          Welche Dienste habt ihr? Wir schlagen nur Filme vor, die dort gerade im Abo laufen. Ohne Auswahl nehmen wir alle bekannten Dienste.
+          <span className="block text-lg text-text">Welche Dienste habt ihr?</span>
+          <span className="text-sm">Wir schlagen nur Filme vor, die dort gerade im Abo laufen. Nichts gewählt = alle bekannten.</span>
         </legend>
         {providers === null ? (
           <p className="text-sm text-muted">Lade Anbieter …</p>
@@ -187,7 +188,7 @@ function FavStar({ name, on, onToggle }: { name: string; on: boolean; onToggle: 
       whileTap={{ scale: 0.8, rotate: -15 }}
       animate={{ scale: on ? [1, 1.3, 1] : 1 }}
       transition={{ duration: 0.3 }}
-      className={`grid h-9 w-8 place-items-center text-xl leading-none ${on ? "text-accent" : "text-line hover:text-muted"}`}
+      className={`grid h-9 w-8 place-items-center text-xl leading-none ${on ? "text-accent" : "text-muted/70 hover:text-accent"}`}
     >
       {on ? "★" : "☆"}
     </motion.button>
