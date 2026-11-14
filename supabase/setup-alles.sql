@@ -325,6 +325,15 @@ alter table rooms add column if not exists any_source boolean not null default f
 
 notify pgrst, 'reload schema';
 
+-- Stimmungs-Tags auf den Abstimmkarten (#lustig, #zeitreise, …). Werden beim Start der Runde
+-- aus TMDB-Genres und -Schlagwörtern berechnet und hier gespeichert, damit beim Swipen kein
+-- weiterer TMDB-Abruf nötig ist. runtime_min gab es schon, wird jetzt auch befüllt.
+alter table room_movies add column if not exists tags text[] not null default '{}';
+alter table room_movies drop constraint if exists room_movies_tags_check;
+alter table room_movies add constraint room_movies_tags_check check (cardinality(tags) <= 6);
+
+notify pgrst, 'reload schema';
+
 -- Optionales Konto per Magic-Link (Supabase Auth, E-Mail).
 -- Supabase Auth prüft nur, dass die E-Mail-Adresse dem Nutzer gehört. Danach
 -- legt unser Server eine eigene Sitzung an (256-Bit-Token im httpOnly-Cookie,
@@ -390,11 +399,5 @@ begin
     revoke execute on all functions in schema public from anon, authenticated, public;
   end if;
 end $$;
--- Stimmungs-Tags auf den Abstimmkarten (#lustig, #zeitreise, …). Werden beim Start der Runde
--- aus TMDB-Genres und -Schlagwörtern berechnet und hier gespeichert, damit beim Swipen kein
--- weiterer TMDB-Abruf nötig ist. runtime_min gab es schon, wird jetzt auch befüllt.
-alter table room_movies add column if not exists tags text[] not null default '{}';
-alter table room_movies drop constraint if exists room_movies_tags_check;
-alter table room_movies add constraint room_movies_tags_check check (cardinality(tags) <= 6);
 
 notify pgrst, 'reload schema';
