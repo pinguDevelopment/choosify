@@ -35,6 +35,11 @@ alter table runoff_votes enable row level security;
 -- 3) Option "Sonstige / eigene Quelle"
 alter table rooms add column if not exists any_source boolean not null default false;
 
+-- 3b) Stimmungs-Tags auf den Abstimmkarten
+alter table room_movies add column if not exists tags text[] not null default '{}';
+alter table room_movies drop constraint if exists room_movies_tags_check;
+alter table room_movies add constraint room_movies_tags_check check (cardinality(tags) <= 6);
+
 -- 4) Rangliste neu anlegen
 -- Rangliste:
 --   1. alle haben Ja gesagt
@@ -98,7 +103,7 @@ notify pgrst, 'reload schema';
 select fehlt from (
   select 'Spalte ' || t || '.' || c as fehlt
   from (values ('votes','choice'), ('rooms','runoff_ids'), ('rooms','winner_to_abspann'),
-               ('rooms','any_source'), ('runoff_votes','tmdb_id')) need(t, c)
+               ('rooms','any_source'), ('runoff_votes','tmdb_id'), ('room_movies','tags')) need(t, c)
   where not exists (select 1 from information_schema.columns
                     where table_schema = 'public' and table_name = need.t and column_name = need.c)
   union all
