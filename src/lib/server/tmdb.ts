@@ -94,15 +94,36 @@ export async function discover(o: DiscoverOptions): Promise<{ results: TmdbMovie
 
 const providerList = z.array(z.object({ provider_id: z.number().int() })).optional();
 
-/** Wo läuft der Film gerade? (TMDB-Daten von JustWatch, pro Region) */
-export async function getWatchProviders(id: number, region: string): Promise<WatchProviderEntry | undefined> {
+export type MovieDetails = {
+  /** Wo läuft der Film in der Region (undefined = nirgends) */
+  providers: WatchProviderEntry | undefined;
+  /** englische TMDB-Schlagwörter, werden nur intern auf deutsche Tags abgebildet */
+  keywords: string[];
+  runtime: number | null;
+};
+
+/**
+ * Ein Abruf pro Film für alles, was die Karte braucht: Streaming-Verfügbarkeit, Schlagwörter
+ * und Laufzeit (TMDB append_to_response statt drei einzelner Abrufe).
+ */
+export async function getMovieDetails(id: number, region: string): Promise<MovieDetails> {
   const data = await tmdb(
-    `/movie/${id}/watch/providers`,
-    new URLSearchParams(),
-    z.object({ results: z.record(z.string(), z.object({ flatrate: providerList, free: providerList, ads: providerList })) }),
+    `/movie/${id}`,
+    new URLSearchParams({ append_to_response: "keywords,watch/providers" }),
+    z.object({
+      runtime: z.number().int().nonnegative().max(1000).nullable().optional(),
+      keywords: z.object({ keywords: z.array(z.object({ name: z.string().max(100) })).max(200).optional() }).optional(),
+      "watch/providers": z
+        .object({ results: z.record(z.string(), z.object({ flatrate: providerList, free: providerList, ads: providerList })) })
+        .optional(),
+    }),
     21600,
   );
-  return data.results[region];
+  return {
+    providers: data["watch/providers"]?.results[region],
+    keywords: (data.keywords?.keywords ?? []).map((k) => k.name),
+    runtime: data.runtime || null,
+  };
 }
 
 export async function getMovie(id: number): Promise<TmdbMovie> {
