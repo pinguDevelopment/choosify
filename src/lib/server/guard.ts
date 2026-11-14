@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import type { z } from "zod";
 import { db } from "./db";
 import { jsonError } from "./http";
+import { isAllowedOrigin, parseAllowList } from "../origin";
 
 /**
  * CSRF-Schutz: Schreibende Requests müssen von derselben Origin kommen
@@ -10,15 +11,11 @@ import { jsonError } from "./http";
  */
 export function checkSameOrigin(req: NextRequest): Response | null {
   const origin = req.headers.get("origin");
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  if (!origin || !host) return jsonError(403, "Origin fehlt");
-  let originHost: string;
-  try {
-    originHost = new URL(origin).host;
-  } catch {
-    return jsonError(403, "Ungültige Origin");
+  if (!origin) return jsonError(403, "Origin fehlt");
+  const hosts = [req.headers.get("x-forwarded-host") ?? "", req.headers.get("host") ?? ""];
+  if (!isAllowedOrigin(origin, hosts, parseAllowList(process.env.ALLOWED_ORIGINS))) {
+    return jsonError(403, "Fremde Origin. Für Tunnel/Port-Forwarding die Adresse in ALLOWED_ORIGINS eintragen.");
   }
-  if (originHost !== host) return jsonError(403, "Fremde Origin");
   if (!req.headers.get("content-type")?.startsWith("application/json")) {
     return jsonError(415, "JSON erwartet");
   }
