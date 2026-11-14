@@ -2,7 +2,7 @@
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api, type AccountInfo, type Provider } from "@/lib/api";
 import { loadLocalFavorites, saveLocalFavorites, type Favorites } from "@/lib/favorites";
 import { Chip } from "@/components/Chip";
@@ -21,6 +21,11 @@ export function CreateRoom() {
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Next.js (Cache Components) versteckt Seiten beim Navigieren nur (React Activity) und
+  // behält ihren State. Ohne Reset stünde der Knopf nach "Zurück zur Startseite" noch auf
+  // "wird erstellt …" und ließe sich nicht mehr drücken.
+  useLayoutEffect(() => () => setBusy(false), []);
 
   const [loggedIn, setLoggedIn] = useState<string | null>(null);
 
