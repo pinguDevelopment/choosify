@@ -67,3 +67,5 @@ Lokal ohne echte Dienste: Postgres 16 + PostgREST (Docker) + kleiner Proxy unter
 13. **`new Array(n).map()` überspringt leere Plätze.** Für vorbelegte Arrays `Array.from({ length: n }, ...)` nehmen.
 14. **E2E nach Animationen.** Direkt nach einem Swipe ist die alte Karte noch im DOM (Rausflug-Animation). Vor der nächsten Geste kurz warten und Elemente über Rolle/Name statt über Position suchen.
 15. **Shell-Befehle, die auf stdin warten** (`cat > datei` ohne Heredoc) hängen in der Cloud-Session. Dateien mit Heredoc oder dem Write-Tool schreiben.
+16. **Neue Spalte, alte Datenbank.** Nach dem Merge fehlte beim Nutzer `rooms.any_source` (PGRST204), weil das Update-SQL noch nicht lief. Fehlende Spalten/Tabellen/Funktionen liefern jetzt einen klaren 503 mit Hinweis (`src/lib/server/http.ts`). Bei jeder Migration im PR und in der Antwort deutlich sagen: erst SQL ausführen, dann mergen.
+17. **Log-Flut durch Schrift-Warnung.** `next/font` kennt für Big Shoulders keine Fallback-Metriken und warnte bei jedem Request. Lösung: `adjustFontFallback: false` plus explizites `fallback`.
