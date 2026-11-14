@@ -15,4 +15,4 @@ export async function api<T = unknown>(
 }
 
 export type Genre = { id: number; name: string };
-export type Provider = { id: number; name: string; logoPath: string | null };
+export type Provider = { id: number; name: string; logoPath: string | null; featured: boolean };

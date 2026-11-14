@@ -2,10 +2,10 @@ import "server-only";
 import { db } from "./db";
 import { AppError } from "./http";
 import { env } from "./env";
-import { discover, posterUrl } from "./tmdb";
+import { discover, getProviders, getWatchProviders, posterUrl } from "./tmdb";
 import { hashSecret, newRoomCode, newSecret } from "./tokens";
 import { setCrewCookie, setParticipantCookie, currentCrew, type Participant, type Room } from "./session";
-import { pickCandidates, releaseYear, personalOrder, type Choice } from "../candidates";
+import { BUCKETS, mixBuckets, pickCandidates, randomPage, releaseYear, personalOrder, streamableOn, type Choice } from "../candidates";
 import { runoffResult, tiedLeaders } from "../ranking";
 
 export { AppError };
@@ -18,6 +18,7 @@ export async function createRoom(input: {
   hostName: string;
   region: string;
   providerIds: number[];
+  anySource: boolean;
   crewName?: string;
 }): Promise<{ code: string }> {
   const app = env().APP_SECRET;
@@ -42,7 +43,7 @@ export async function createRoom(input: {
     const code = newRoomCode();
     const { data: room, error } = await db()
       .from("rooms")
-      .insert({ code, crew_id: crew!.id, region: input.region, provider_ids: input.providerIds })
+      .insert({ code, crew_id: crew!.id, region: input.region, provider_ids: input.providerIds, any_source: input.anySource })
       .select("id")
       .single();
     if (error?.code === PG_UNIQUE) continue;
@@ -91,6 +92,47 @@ export async function setGenres(me: Participant, genreIds: number[]) {
   if (error) throw error;
 }
 
+const ROOM_SIZE = 30;
+
+/**
+ * Kandidaten aus vier Töpfen (beliebt, top bewertet, Klassiker, Geheimtipps) mit zufälligen Seiten,
+ * abwechselnd gemischt. Danach wird jeder Film einzeln geprüft: Er muss gerade bei einem der
+ * gewählten Dienste im Abo, kostenlos oder mit Werbung laufen. Reine Kino- oder Leihfilme fliegen raus.
+ */
+async function findCandidates(room: Room, genreIds: number[], selections: number[][], watched: number[]) {
+  // "Sonstige / eigene Quelle": kein Dienst-Filter und keine Prüfung, nur die Kino-Sperre bleibt.
+  // Ohne Auswahl sonst: alle bekannten Dienste, damit trotzdem nur Streambares kommt.
+  const providerIds = room.any_source
+    ? []
+    : room.provider_ids.length
+    ? room.provider_ids
+    : (await getProviders(room.region)).filter((p) => p.featured).map((p) => p.id);
+  const base = { region: room.region, providerIds, genreIds };
+
+  const lists = await Promise.all(
+    BUCKETS.map(async (bucket) => {
+      const first = await discover({ ...base, bucket, page: 1 });
+      const page = randomPage(bucket, first.totalPages);
+      const more = page === 1 ? [] : (await discover({ ...base, bucket, page })).results;
+      // Zufällige Seite zuerst, damit nicht jede Runde dieselben Filme bringt
+      return pickCandidates([...more, ...first.results], selections, watched, ROOM_SIZE);
+    }),
+  );
+  if (room.any_source) return mixBuckets(lists, ROOM_SIZE);
+  const mixed = mixBuckets(lists, Math.round(ROOM_SIZE * 1.6));
+
+  const checked = await Promise.all(
+    mixed.map(async (m) => {
+      try {
+        return streamableOn(await getWatchProviders(m.id, room.region), providerIds).length > 0 ? m : null;
+      } catch {
+        return null; // im Zweifel lieber weglassen
+      }
+    }),
+  );
+  return checked.filter((m) => m !== null).slice(0, ROOM_SIZE);
+}
+
 /** Host startet das Swipen: Kandidaten aus TMDB holen, Abspann-Filme rausfiltern. */
 export async function startVoting(room: Room, me: Participant) {
   if (!me.is_host) throw new AppError(403, "Nur der Host kann starten");
@@ -111,14 +153,9 @@ export async function startVoting(room: Room, me: Participant) {
     watched = (data ?? []).map((r) => r.tmdb_id);
   }
 
-  const pages = await Promise.all(
-    [1, 2, 3].map((page) =>
-      discover({ region: room.region, providerIds: room.provider_ids, genreIds, page }),
-    ),
-  );
-  const picked = pickCandidates(pages.flat(), selections, watched, 30);
+  const picked = await findCandidates(room, genreIds, selections, watched);
   if (picked.length === 0) {
-    throw new AppError(422, "Keine passenden Filme gefunden. Wähle mehr Anbieter oder Genres.");
+    throw new AppError(422, "Keine passenden Filme gefunden, die gerade im Abo laufen. Wähle mehr Dienste oder Genres.");
   }
 
   const rows = picked.map((m, i) => ({

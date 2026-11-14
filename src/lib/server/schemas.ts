@@ -13,6 +13,8 @@ export const createRoomSchema = z.object({
   hostName: nameSchema,
   region: z.string().regex(/^[A-Z]{2}$/).default("DE"),
   providerIds: z.array(z.number().int().positive()).max(30).default([]),
+  // "Sonstige / eigene Quelle": auch Filme, die bei keinem gewählten Dienst laufen
+  anySource: z.boolean().default(false),
   crewName: nameSchema.optional(),
 });
 

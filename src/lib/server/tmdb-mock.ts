@@ -17,7 +17,14 @@ const providers = [
   { provider_id: 9, provider_name: "Amazon Prime Video", logo_path: null, display_priorities: { DE: 2 } },
   { provider_id: 337, provider_name: "Disney Plus", logo_path: null, display_priorities: { DE: 3 } },
   { provider_id: 350, provider_name: "Apple TV+", logo_path: null, display_priorities: { DE: 4 } },
+  { provider_id: 30, provider_name: "WOW", logo_path: null, display_priorities: { DE: 9 } },
+  { provider_id: 1796, provider_name: "Netflix Standard with Ads", logo_path: null, display_priorities: { DE: 5 } },
+  { provider_id: 2, provider_name: "Apple TV", logo_path: null, display_priorities: { DE: 6 } },
+  { provider_id: 201, provider_name: "MUBI Amazon Channel", logo_path: null, display_priorities: { DE: 7 } },
 ];
+
+/** Jeder 4. Testfilm ist nirgends im Abo, sondern nur zum Leihen (z. B. noch im Kino). */
+export const mockOnlyRent = (id: number) => id % 4 === 3;
 
 const movies = Array.from({ length: 60 }, (_, i) => {
   const g = genres[i % genres.length].id;
@@ -42,6 +49,12 @@ export function mockTmdb(path: string, params: URLSearchParams): unknown {
     const q = (params.get("query") ?? "").toLowerCase();
     return { results: movies.filter((m) => m.title.toLowerCase().includes(q)) };
   }
+  const wp = path.match(/^\/movie\/(\d+)\/watch\/providers$/);
+  if (wp) {
+    const id = Number(wp[1]);
+    if (mockOnlyRent(id)) return { results: { DE: { rent: [{ provider_id: 2 }] } } };
+    return { results: { DE: { flatrate: [{ provider_id: [8, 9, 337, 350][id % 4] }, { provider_id: 30 }] } } };
+  }
   const single = path.match(/^\/movie\/(\d+)$/);
   if (single) {
     const m = movies.find((x) => x.id === Number(single[1]));
@@ -52,7 +65,7 @@ export function mockTmdb(path: string, params: URLSearchParams): unknown {
     const want = (params.get("with_genres") ?? "").split("|").filter(Boolean).map(Number);
     const page = Number(params.get("page") ?? 1);
     const hits = movies.filter((m) => !want.length || m.genre_ids.some((g) => want.includes(g)));
-    return { results: hits.slice((page - 1) * 20, page * 20) };
+    return { results: hits.slice((page - 1) * 20, page * 20), total_pages: Math.ceil(hits.length / 20) };
   }
   throw new Error(`Mock: unbekannter Pfad ${path}`);
 }
