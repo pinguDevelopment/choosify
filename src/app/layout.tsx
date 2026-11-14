@@ -15,9 +15,11 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#2A0A14", width: "device-width", initialScale: 1 };
 
+// suppressHydrationWarning: Browser-Erweiterungen (z.B. data-qb-installed) setzen Attribute auf <html>,
+// bevor React lädt. Gilt nur für dieses eine Element, nicht für die Kinder.
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="de" className={`${display.variable} ${marquee.variable} ${body.variable} h-full antialiased`}>
+    <html lang="de" suppressHydrationWarning className={`${display.variable} ${marquee.variable} ${body.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
