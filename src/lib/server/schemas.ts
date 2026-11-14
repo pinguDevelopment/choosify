@@ -28,3 +28,32 @@ export const finishSchema = z.object({
 });
 export const runoffSchema = z.object({ tmdbId: tmdbIdSchema });
 export const abspannSchema = z.object({ tmdbId: tmdbIdSchema });
+
+// ---- Konto (Magic-Link) ----
+export const emailSchema = z
+  .string()
+  .transform((s) => s.normalize("NFC").trim().toLowerCase())
+  .pipe(z.email().max(254));
+
+export const loginMailSchema = z.object({ email: emailSchema });
+
+const favoritesSchema = z.object({
+  ids: z.array(z.number().int().positive().max(1_000_000)).max(60),
+  other: z.boolean(),
+});
+
+// Entweder der Link aus der Mail (token_hash) oder E-Mail + Code zum Abtippen.
+export const verifySchema = z.union([
+  z.object({ tokenHash: z.string().min(8).max(200).regex(/^[A-Za-z0-9._-]+$/), favorites: favoritesSchema.optional() }),
+  z.object({ email: emailSchema, code: z.string().regex(/^\d{6,10}$/), favorites: favoritesSchema.optional() }),
+]);
+
+export const logoutSchema = z.object({ everywhere: z.boolean().default(false) });
+
+export const accountPatchSchema = z
+  .object({
+    favorites: favoritesSchema.optional(),
+    crewId: z.uuid().optional(),
+    adoptDeviceCrew: z.literal(true).optional(),
+  })
+  .refine((v) => v.favorites || v.crewId || v.adoptDeviceCrew, "leer");

@@ -1,29 +1,13 @@
 "use client";
 import { motion } from "motion/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, type Provider } from "@/lib/api";
+import { api, type AccountInfo, type Provider } from "@/lib/api";
+import { loadLocalFavorites, saveLocalFavorites, type Favorites } from "@/lib/favorites";
 import { Chip } from "@/components/Chip";
 
-// Favoriten bleiben auf diesem Gerät gespeichert (wie das Crew-Cookie auch).
-const FAV_KEY = "choosify:lieblingsquellen";
-type Favorites = { ids: number[]; other: boolean };
-function loadFavorites(): Favorites {
-  try {
-    const v = JSON.parse(localStorage.getItem(FAV_KEY) ?? "null");
-    if (v && Array.isArray(v.ids)) return { ids: v.ids.filter((x: unknown) => Number.isInteger(x)), other: v.other === true };
-  } catch {
-    // Speicher gesperrt oder kaputt: ohne Favoriten weiter
-  }
-  return { ids: [], other: false };
-}
-function saveFavorites(f: Favorites) {
-  try {
-    localStorage.setItem(FAV_KEY, JSON.stringify(f));
-  } catch {
-    // nicht schlimm, dann eben nur für diese Sitzung
-  }
-}
+// Favoriten bleiben auf diesem Gerät gespeichert, mit Konto zusätzlich auf allen Geräten.
 const norm = (s: string) => s.toLowerCase().replace(/\+/g, " plus").replace(/[^a-z0-9äöüß ]/g, "");
 
 export function CreateRoom() {
@@ -38,12 +22,20 @@ export function CreateRoom() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [loggedIn, setLoggedIn] = useState<string | null>(null);
+
   useEffect(() => {
-    api<{ providers: Provider[] }>("/api/tmdb/providers?region=DE")
-      .then((d) => {
+    // Angemeldet zählen die Favoriten aus dem Konto, sonst die vom Gerät.
+    const account = api<{ account: AccountInfo | null }>("/api/konto")
+      .then((d) => d.account)
+      .catch(() => null);
+    Promise.all([api<{ providers: Provider[] }>("/api/tmdb/providers?region=DE"), account])
+      .then(([d, acc]) => {
         setProviders(d.providers);
+        setLoggedIn(acc?.email ?? null);
         // Favoriten sind beim Start schon ausgewählt
-        const f = loadFavorites();
+        const f = acc ? acc.favorites : loadLocalFavorites();
+        if (acc) saveLocalFavorites(f);
         const known = new Set(d.providers.map((p) => p.id));
         setFavs(f);
         setPicked(f.ids.filter((id) => known.has(id)));
@@ -68,14 +60,18 @@ export function CreateRoom() {
   const showOther = !q || norm("Sonstige eigene Quelle").includes(q);
 
   function toggleFav(id: number | "other") {
-    setFavs((f) => {
-      const next =
-        id === "other"
-          ? { ...f, other: !f.other }
-          : { ...f, ids: f.ids.includes(id) ? f.ids.filter((x) => x !== id) : [...f.ids, id] };
-      saveFavorites(next);
-      return next;
-    });
+    const f = favs;
+    const next =
+      id === "other"
+        ? { ...f, other: !f.other }
+        : { ...f, ids: f.ids.includes(id) ? f.ids.filter((x) => x !== id) : [...f.ids, id] };
+    setFavs(next);
+    saveLocalFavorites(next);
+    if (loggedIn) {
+      api("/api/konto", { method: "PATCH", body: { favorites: next } }).catch(() =>
+        setError("Favorit ist nur auf diesem Gerät gespeichert, das Konto war gerade nicht erreichbar."),
+      );
+    }
     // Als Favorit markieren heißt auch: jetzt auswählen
     if (id === "other") {
       if (!favs.other) setAnySource(true);
@@ -103,7 +99,18 @@ export function CreateRoom() {
 
   return (
     <form className="flex flex-col gap-5" onSubmit={submit}>
-      <h2 className="text-4xl">Filmabend starten</h2>
+      <div>
+        <h2 className="text-4xl">Filmabend starten</h2>
+        {loggedIn && (
+          <p className="mt-1 flex gap-1.5 text-sm text-muted">
+            <span className="truncate">Angemeldet als {loggedIn}</span>
+            <span aria-hidden>·</span>
+            <Link href="/konto" className="shrink-0 underline underline-offset-4">
+              Konto
+            </Link>
+          </p>
+        )}
+      </div>
       <label className="flex flex-col gap-1.5">
         <span className="text-muted">Dein Name</span>
         <input
@@ -162,7 +169,7 @@ export function CreateRoom() {
               )}
               {q && visible.length === 0 && !showOther && <p className="text-sm text-muted">Kein Dienst gefunden.</p>}
             </div>
-            <p className="text-sm text-muted">Mit ☆ merkst du dir einen Dienst als Favorit. Favoriten stehen oben und sind beim nächsten Mal schon ausgewählt.</p>
+            <p className="text-sm text-muted">Mit ☆ merkst du dir einen Dienst als Favorit. Favoriten stehen oben und sind beim nächsten Mal schon ausgewählt{loggedIn ? ", auf allen deinen Geräten" : ""}.</p>
           </>
         )}
         {anySource && (
