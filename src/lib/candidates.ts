@@ -12,30 +12,108 @@ export type TmdbMovie = {
   genre_ids?: number[];
 };
 
+/**
+ * Vier Töpfe, damit nicht nur aktuelle Blockbuster kommen:
+ *  - popular:   was gerade viele schauen
+ *  - acclaimed: sehr gut bewertet, mit vielen Stimmen (oft ältere Klassiker)
+ *  - classic:   bis einschließlich 2005
+ *  - gem:       gut bewertet, aber eher unbekannt (wenige Stimmen)
+ */
+export const BUCKETS = ["popular", "acclaimed", "classic", "gem"] as const;
+export type Bucket = (typeof BUCKETS)[number];
+/** Bis zu welcher Seite pro Topf zufällig geblättert wird */
+export const BUCKET_MAX_PAGE: Record<Bucket, number> = { popular: 5, acclaimed: 12, classic: 10, gem: 10 };
+
 export type DiscoverOptions = {
   region: string;
   providerIds: number[];
   genreIds: number[];
   page: number;
+  bucket?: Bucket;
+  /** für Tests; sonst heute */
+  today?: Date;
 };
+
+/** Filme, die erst seit kurzem draußen sind, laufen oft nur im Kino. */
+export const CINEMA_DAYS = 60;
+
+const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Baut die Query für TMDB /discover/movie. "|" bedeutet ODER bei TMDB. */
 export function discoverParams(o: DiscoverOptions): URLSearchParams {
+  const bucket = o.bucket ?? "popular";
+  const latest = new Date((o.today ?? new Date()).getTime() - CINEMA_DAYS * 86400_000);
   const p = new URLSearchParams({
     language: "de-DE",
     region: o.region,
     watch_region: o.region,
-    sort_by: "popularity.desc",
+    sort_by: bucket === "acclaimed" || bucket === "gem" ? "vote_average.desc" : "popularity.desc",
     include_adult: "false",
-    "vote_count.gte": "150",
+    "vote_count.gte": { popular: "200", acclaimed: "1500", classic: "300", gem: "80" }[bucket],
+    "primary_release_date.lte": bucket === "classic" ? "2005-12-31" : isoDate(latest),
     page: String(o.page),
   });
+  if (bucket === "gem") {
+    p.set("vote_count.lte", "1500");
+    p.set("vote_average.gte", "6.8");
+  }
   if (o.providerIds.length) {
     p.set("with_watch_providers", o.providerIds.join("|"));
+    // Nur Abo, kostenlos oder mit Werbung: nichts, was man extra leihen oder kaufen muss
     p.set("with_watch_monetization_types", "flatrate|free|ads");
   }
   if (o.genreIds.length) p.set("with_genres", o.genreIds.join("|"));
   return p;
+}
+
+/** Zufällige Seite innerhalb dessen, was TMDB für diesen Topf hat. */
+export function randomPage(bucket: Bucket, totalPages: number, rnd: () => number = Math.random): number {
+  const max = Math.max(1, Math.min(totalPages, BUCKET_MAX_PAGE[bucket], 500));
+  return 1 + Math.floor(rnd() * max);
+}
+
+export type WatchProviderEntry = {
+  flatrate?: { provider_id: number }[];
+  free?: { provider_id: number }[];
+  ads?: { provider_id: number }[];
+};
+
+/** Kann man den Film bei einem der gewählten Dienste ohne Aufpreis streamen? */
+export function streamableOn(entry: WatchProviderEntry | undefined, providerIds: number[]): number[] {
+  if (!entry) return [];
+  const wanted = new Set(providerIds);
+  const ids = [...(entry.flatrate ?? []), ...(entry.free ?? []), ...(entry.ads ?? [])].map((p) => p.provider_id);
+  return [...new Set(ids.filter((id) => wanted.has(id)))];
+}
+
+/** Abwechselnd aus jedem Topf nehmen, Doppelte überspringen. */
+export function mixBuckets<T extends { id: number }>(lists: T[][], limit: number): T[] {
+  const out: T[] = [];
+  const seen = new Set<number>();
+  for (let i = 0; out.length < limit && lists.some((l) => i < l.length); i++) {
+    for (const l of lists) {
+      const m = l[i];
+      if (!m || seen.has(m.id)) continue;
+      seen.add(m.id);
+      out.push(m);
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Bekannte Dienste in Deutschland, in dieser Reihenfolge angezeigt.
+ * Abgleich über den Namen, weil TMDB-IDs je nach Region schwanken; Varianten wie
+ * "Netflix Standard with Ads" oder "… Amazon Channel" landen unter "Mehr".
+ */
+const FEATURED = ["netflix", "amazonprimevideo", "disneyplus", "appletvplus", "wow", "joyn", "rtlplus", "paramountplus", "magentatv", "ardmediathek", "zdf"];
+const normalizeProvider = (name: string) => name.toLowerCase().replace(/\+/g, "plus").replace(/[^a-z0-9]/g, "");
+/** Platz in der Liste der bekannten Dienste, sonst -1 */
+export function featuredRank(name: string, id?: number): number {
+  const i = FEATURED.indexOf(normalizeProvider(name));
+  if (i >= 0) return i;
+  return id === 350 ? FEATURED.indexOf("appletvplus") : -1; // Apple TV+ heißt bei TMDB inzwischen teils nur "Apple TV"
 }
 
 /** Wie viele Teilnehmer wollen welches Genre? */
