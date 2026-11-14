@@ -67,7 +67,13 @@ export function CreateRoom() {
                 aria-pressed={picked.includes(p.id)}
                 onClick={() => toggle(p.id)}
               >
-                {p.name}
+                <span className="flex items-center gap-2">
+                  {p.logoPath && (
+                    // eslint-disable-next-line @next/next/no-img-element -- kleines TMDB-Logo
+                    <img src={`https://image.tmdb.org/t/p/w45${p.logoPath}`} alt="" className="h-5 w-5 rounded" />
+                  )}
+                  {p.name}
+                </span>
               </button>
             ))}
             {providers.length > 12 && (

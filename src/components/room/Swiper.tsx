@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { Movie, RoomState } from "./types";
 import { RankingList } from "./Results";
@@ -7,14 +7,18 @@ import { RankingList } from "./Results";
 const THRESHOLD = 110;
 
 export function Swiper({ state, onChange }: { state: RoomState; onChange: () => void }) {
-  const [local, setLocal] = useState<Record<number, boolean>>({});
+  // null = lokal zurückgenommen, bis der Server es bestätigt
+  const [local, setLocal] = useState<Record<number, boolean | null>>({});
+  const [history, setHistory] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const voted = useMemo<Record<number, boolean>>(() => ({ ...state.myVotes, ...local }), [state.myVotes, local]);
-  const queue = state.movies.filter((m) => voted[m.tmdbId] === undefined);
+  const voted = useMemo<Record<number, boolean | null>>(() => ({ ...state.myVotes, ...local }), [state.myVotes, local]);
+  const queue = state.movies.filter((m) => voted[m.tmdbId] == null);
   const done = state.movies.length - queue.length;
 
   async function cast(m: Movie, liked: boolean) {
     setLocal((l) => ({ ...l, [m.tmdbId]: liked })); // sofort weiter, Server im Hintergrund
+    setHistory((h) => [...h, m.tmdbId]);
+    navigator.vibrate?.(liked ? [12, 40, 12] : 12);
     try {
       await api(`/api/rooms/${state.code}/vote`, { body: { tmdbId: m.tmdbId, liked } });
     } catch (e) {
@@ -26,6 +30,38 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
       });
     }
   }
+
+  async function undo() {
+    const last = history.at(-1);
+    if (last === undefined) return;
+    setHistory((h) => h.slice(0, -1));
+    setLocal((l) => ({ ...l, [last]: null }));
+    try {
+      await api(`/api/rooms/${state.code}/vote`, { body: { tmdbId: last, liked: null } });
+      onChange();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  // Tastatur am Laptop: ← Nein, → Ja, Backspace = Rückgängig
+  const top = queue[0];
+  const castRef = useRef(cast);
+  const undoRef = useRef(undo);
+  useEffect(() => {
+    castRef.current = cast;
+    undoRef.current = undo;
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return;
+      if (e.key === "ArrowRight" && top) castRef.current(top, true);
+      else if (e.key === "ArrowLeft" && top) castRef.current(top, false);
+      else if (e.key === "Backspace") undoRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [top]);
 
   return (
     <>
@@ -56,7 +92,16 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
                 />
               ))}
           </div>
-          <div className="flex justify-center gap-6">
+          <div className="flex items-center justify-center gap-6">
+            <button
+              className="btn h-11 w-11 rounded-full border border-line bg-surface text-lg text-muted"
+              aria-label="Rückgängig"
+              title="Rückgängig"
+              disabled={history.length === 0}
+              onClick={undo}
+            >
+              ↺
+            </button>
             <button
               className="btn h-16 w-16 rounded-full border border-no/50 bg-surface text-2xl text-no"
               aria-label="Nein"
@@ -71,10 +116,12 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
             >
               ♥
             </button>
+            <span className="w-11" aria-hidden />
           </div>
+          <p className="hidden text-center text-xs text-muted sm:block">Tastatur: ← Nö · → Bock · ⌫ Rückgängig</p>
         </>
       ) : (
-        <section className="card text-center">
+        <section className="card animate-pop text-center">
           <p className="text-2xl">🎉</p>
           <h2 className="mt-1 text-xl font-bold">Du bist durch!</h2>
           <p className="mt-1 text-sm text-muted">Hier der Zwischenstand, er aktualisiert sich live.</p>
