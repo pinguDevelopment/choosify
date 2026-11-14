@@ -38,6 +38,13 @@ export function AbspannClient() {
         <Link href="/" className="btn-primary mt-4">
           Runde starten
         </Link>
+        <p className="mt-4 text-sm text-muted">
+          Eure Crew gibt es schon auf einem anderen Gerät?{" "}
+          <Link href="/konto" className="underline underline-offset-4">
+            Melde dich an
+          </Link>
+          , dann ist sie hier auch da.
+        </p>
       </div>
     );
   }

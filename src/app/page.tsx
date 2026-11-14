@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CreateRoom } from "@/components/CreateRoom";
 import { JoinByCode } from "@/components/JoinByCode";
+import { LoginLinkFallback } from "@/components/LoginLinkFallback";
 
 export default function Home() {
   return (
@@ -13,10 +14,14 @@ export default function Home() {
           Jeder wischt durch Filme, die bei euch laufen. Am Ende steht der eine, auf den alle Bock haben.
         </p>
       </header>
+      <LoginLinkFallback />
       <CreateRoom />
       <JoinByCode />
       <Link href="/abspann" className="text-muted underline decoration-line underline-offset-4 hover:text-text">
         Abspann: eure schon gesehenen Filme
+      </Link>
+      <Link href="/konto" className="-mt-7 text-muted underline decoration-line underline-offset-4 hover:text-text">
+        Konto: Crews und Abspann auf allen Geräten
       </Link>
     </main>
   );
