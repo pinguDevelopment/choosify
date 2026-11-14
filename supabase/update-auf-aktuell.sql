@@ -164,8 +164,7 @@ select fehlt from (
   from (values ('votes','choice'), ('rooms','runoff_ids'), ('rooms','winner_to_abspann'),
                ('rooms','any_source'), ('runoff_votes','tmdb_id'),
                ('accounts','favorite_provider_ids'), ('account_sessions','token_hash'),
-               ('crews','account_id'), ('crews','last_used_at')) need(t, c)
-               ('rooms','any_source'), ('runoff_votes','tmdb_id'), ('room_movies','tags')) need(t, c)
+               ('crews','account_id'), ('crews','last_used_at'), ('room_movies','tags')) need(t, c)
   where not exists (select 1 from information_schema.columns
                     where table_schema = 'public' and table_name = need.t and column_name = need.c)
   union all
