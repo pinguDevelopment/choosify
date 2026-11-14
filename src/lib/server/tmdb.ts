@@ -1,11 +1,13 @@
 import "server-only";
 import { z } from "zod";
-import { env } from "./env";
+import { env, tmdbMock } from "./env";
+import { mockTmdb } from "./tmdb-mock";
 import { discoverParams, type DiscoverOptions, type TmdbMovie } from "../candidates";
 
 const BASE = "https://api.themoviedb.org/3";
 
 async function tmdb<T>(path: string, params: URLSearchParams, schema: z.ZodType<T>, revalidate = 3600): Promise<T> {
+  if (tmdbMock) return schema.parse(mockTmdb(path, params));
   const res = await fetch(`${BASE}${path}?${params}`, {
     headers: { Authorization: `Bearer ${env().TMDB_READ_TOKEN}`, Accept: "application/json" },
     next: { revalidate },
@@ -77,6 +79,10 @@ export async function discover(o: DiscoverOptions): Promise<TmdbMovie[]> {
     1800,
   );
   return data.results;
+}
+
+export async function getMovie(id: number): Promise<TmdbMovie> {
+  return tmdb(`/movie/${id}`, new URLSearchParams({ language: "de-DE" }), movieSchema, 86400);
 }
 
 export async function searchMovies(query: string): Promise<TmdbMovie[]> {
