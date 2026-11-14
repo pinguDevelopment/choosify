@@ -1,3 +1,5 @@
+"use client";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import type { RankingRow, RoomState } from "./types";
 import { Confetti } from "./Confetti";
@@ -6,8 +8,18 @@ export function RankingList({ ranking }: { ranking: RankingRow[] }) {
   if (!ranking.length) return <p className="text-muted">Noch hat niemand Ja gesagt.</p>;
   return (
     <ol className="flex flex-col">
+      <AnimatePresence initial={false}>
       {ranking.map((r, i) => (
-        <li key={r.tmdbId} className="flex items-center gap-3 border-b border-line/70 py-2.5 last:border-0">
+        // layout: Plätze tauschen weich, wenn sich der Live-Stand ändert
+        <motion.li
+          layout
+          key={r.tmdbId}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ type: "spring", stiffness: 420, damping: 34 }}
+          className="flex items-center gap-3 border-b border-line/70 py-2.5 last:border-0"
+        >
           <span className="w-7 text-center font-display text-2xl font-extrabold text-muted">{i + 1}</span>
           {r.poster ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -22,8 +34,9 @@ export function RankingList({ ranking }: { ranking: RankingRow[] }) {
           <span className={`font-semibold ${r.unanimous ? "text-yes" : "text-muted"}`}>
             {r.unanimous ? "alle ♥" : `${r.likes} ♥`}
           </span>
-        </li>
+        </motion.li>
       ))}
+      </AnimatePresence>
     </ol>
   );
 }

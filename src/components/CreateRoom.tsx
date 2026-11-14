@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, type Provider } from "@/lib/api";
+import { Chip } from "@/components/Chip";
 
 export function CreateRoom() {
   const router = useRouter();
@@ -60,21 +61,13 @@ export function CreateRoom() {
         ) : (
           <div className="flex flex-wrap gap-2">
             {visible.map((p) => (
-              <button
-                type="button"
-                key={p.id}
-                className="chip"
-                aria-pressed={picked.includes(p.id)}
-                onClick={() => toggle(p.id)}
-              >
-                <span className="flex items-center gap-2">
-                  {p.logoPath && (
-                    // eslint-disable-next-line @next/next/no-img-element -- kleines TMDB-Logo
-                    <img src={`https://image.tmdb.org/t/p/w45${p.logoPath}`} alt="" className="h-5 w-5 rounded" />
-                  )}
-                  {p.name}
-                </span>
-              </button>
+              <Chip key={p.id} pressed={picked.includes(p.id)} onToggle={() => toggle(p.id)}>
+                {p.logoPath && (
+                  // eslint-disable-next-line @next/next/no-img-element -- kleines TMDB-Logo
+                  <img src={`https://image.tmdb.org/t/p/w45${p.logoPath}`} alt="" className="h-5 w-5 rounded" />
+                )}
+                {p.name}
+              </Chip>
             ))}
             {providers.length > 12 && (
               <button type="button" className="chip text-muted" onClick={() => setShowAll((s) => !s)}>
