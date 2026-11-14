@@ -31,3 +31,27 @@ export function safeEqualHex(a: string, b: string): boolean {
   const bb = Buffer.from(b, "hex");
   return ab.length === bb.length && timingSafeEqual(ab, bb);
 }
+
+/**
+ * Bewertungslink für einen Film im Abspann einer Crew: "<crewId>.<tmdbId>.<Signatur>".
+ * Die Signatur (HMAC, 128 Bit) verhindert, dass jemand Links für fremde Crews oder Filme
+ * baut. Nichts davon steht in der Datenbank; der Link gilt, solange der Film im Abspann ist.
+ */
+function rateSig(crewId: string, tmdbId: number, appSecret: string): string {
+  return createHmac("sha256", appSecret).update(`rate:${crewId}:${tmdbId}`).digest("base64url").slice(0, 22);
+}
+
+export function rateToken(crewId: string, tmdbId: number, appSecret: string): string {
+  return `${crewId}.${tmdbId}.${rateSig(crewId, tmdbId, appSecret)}`;
+}
+
+export function parseRateToken(token: string, appSecret: string): { crewId: string; tmdbId: number } | null {
+  if (token.length > 100) return null;
+  const m = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(\d{1,9})\.([A-Za-z0-9_-]{22})$/.exec(token);
+  if (!m) return null;
+  const tmdbId = Number(m[2]);
+  const want = Buffer.from(rateSig(m[1], tmdbId, appSecret));
+  const got = Buffer.from(m[3]);
+  if (tmdbId <= 0 || want.length !== got.length || !timingSafeEqual(want, got)) return null;
+  return { crewId: m[1], tmdbId };
+}
