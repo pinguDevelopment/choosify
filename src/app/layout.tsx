@@ -3,9 +3,22 @@ import { Big_Shoulders, Big_Shoulders_Inline, Figtree } from "next/font/google";
 import "./globals.css";
 
 // Big Shoulders: schmale Groteske nach Chicagoer Kino- und Straßenschildern.
-const display = Big_Shoulders({ variable: "--font-display", subsets: ["latin"], weight: ["600", "800"] });
+// adjustFontFallback aus: Next kennt für diese Schrift keine Metriken und warnt sonst bei jedem Request.
+const display = Big_Shoulders({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["600", "800"],
+  adjustFontFallback: false,
+  fallback: ["Impact", "Arial Narrow", "sans-serif"],
+});
 // Inline-Schnitt nur für die Leuchtreklame (Logo und Gewinner).
-const marquee = Big_Shoulders_Inline({ variable: "--font-marquee", subsets: ["latin"], weight: ["800"] });
+const marquee = Big_Shoulders_Inline({
+  variable: "--font-marquee",
+  subsets: ["latin"],
+  weight: ["800"],
+  adjustFontFallback: false,
+  fallback: ["Impact", "Arial Narrow", "sans-serif"],
+});
 const body = Figtree({ variable: "--font-body", subsets: ["latin"] });
 
 export const metadata: Metadata = {
