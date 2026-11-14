@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Brand } from "@/components/Brand";
 import { KontoClient } from "@/components/KontoClient";
 
-export const metadata = { title: "Konto – Choosify" };
+export const metadata = { title: "Konto – Filmabend" };
 
 export default function KontoPage() {
   return (

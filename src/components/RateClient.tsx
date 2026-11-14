@@ -148,7 +148,7 @@ export function RateClient({ token }: { token: string }) {
               </li>
             ))}
           </ul>
-          <p className="text-sm text-muted">Danke! Aus euren Sternen lernt Choosify, was eurer Crew gefällt.</p>
+          <p className="text-sm text-muted">Danke! Aus euren Sternen lernt Filmabend, was eurer Crew gefällt.</p>
         </section>
       )}
 
