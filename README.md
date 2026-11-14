@@ -38,4 +38,7 @@ oder mit `npx supabase db push`.
 npm test          # Unit-Tests
 npm run typecheck
 npm run lint
+npm run e2e       # Ende-zu-Ende: Host + 2 Gäste spielen eine Runde (braucht laufenden Dev-Server)
 ```
+
+Für lokale Tests ohne TMDB-Zugang `TMDB_MOCK=1` in `.env.local` setzen (wirkt nie in Produktion).

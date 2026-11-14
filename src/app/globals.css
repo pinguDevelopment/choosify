@@ -1,26 +1,66 @@
 @import "tailwindcss";
 
+/* Kino-Look: dunkler Saal, warmes Leinwand-Gold als Akzent. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0d0b10;
+  --surface: #17141c;
+  --surface-2: #211d28;
+  --line: #2f2a38;
+  --text: #f3eee6;
+  --muted: #a39cab;
+  --accent: #f2b544;
+  --accent-ink: #1a1306;
+  --yes: #43c78a;
+  --no: #ef5d6c;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-yes: var(--yes);
+  --color-no: var(--no);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 50% -200px, #2a1f3a 0%, transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold transition
+    active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+}
+@utility btn-primary {
+  @apply btn bg-accent text-accent-ink hover:brightness-110;
+}
+@utility btn-ghost {
+  @apply btn border border-line bg-surface hover:bg-surface-2;
+}
+@utility input {
+  @apply w-full rounded-xl border border-line bg-surface px-4 py-3 text-text placeholder:text-muted
+    outline-none focus:border-accent;
+}
+@utility card {
+  @apply rounded-2xl border border-line bg-surface/80 p-5 backdrop-blur;
+}
+@utility chip {
+  @apply rounded-full border border-line bg-surface px-4 py-2 text-sm transition select-none;
+}
+.chip[aria-pressed="true"] {
+  @apply border-accent bg-accent text-accent-ink font-semibold;
 }
