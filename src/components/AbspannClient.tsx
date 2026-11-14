@@ -210,8 +210,8 @@ function TasteCard({ taste }: { taste: Taste }) {
       ) : (
         <p className="text-muted">
           {taste.rated
-            ? "Noch kein klares Bild. Bewertet ein paar Filme mehr, dann lernt Choosify, was euch gefällt."
-            : "Bewertet eure Filme mit Sternen, dann lernt Choosify, was euch gefällt, und schlägt Passenderes vor."}
+            ? "Noch kein klares Bild. Bewertet ein paar Filme mehr, dann lernt Filmabend, was euch gefällt."
+            : "Bewertet eure Filme mit Sternen, dann lernt Filmabend, was euch gefällt, und schlägt Passenderes vor."}
         </p>
       )}
     </section>

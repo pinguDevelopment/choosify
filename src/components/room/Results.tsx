@@ -119,7 +119,7 @@ function RateCard({ token, title, name }: { token: string; title: string; name: 
     <section className="card flex flex-col gap-3">
       <p className="font-display text-sm font-bold uppercase tracking-[0.18em] text-accent">Nach dem Film</p>
       <h2 className="text-3xl leading-none">Wie war&apos;s?</h2>
-      <p className="text-muted">Gebt dem Film 1 bis 5 Sterne. Daraus lernt Choosify, was eurer Crew gefällt, und schlägt beim nächsten Mal Passenderes vor.</p>
+      <p className="text-muted">Gebt dem Film 1 bis 5 Sterne. Daraus lernt Filmabend, was eurer Crew gefällt, und schlägt beim nächsten Mal Passenderes vor.</p>
       <div className="flex gap-3">
         <Link href={href} className="btn-primary flex-1 py-2.5">
           ★ Bewerten

@@ -22,7 +22,7 @@ const marquee = Big_Shoulders_Inline({
 const body = Figtree({ variable: "--font-body", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Choosify",
+  title: "Filmabend",
   description: "Gemeinsam schnell einen Film finden",
 };
 

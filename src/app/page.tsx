@@ -8,7 +8,7 @@ export default function Home() {
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-10 px-4 pt-8 pb-12">
       <header className="flex flex-col gap-5">
         <div className="marquee text-center">
-          <h1 className="marquee-text text-[clamp(3.4rem,17vw,5rem)]">Choosify</h1>
+          <h1 className="marquee-text text-[clamp(2.6rem,calc(21vw-1.4rem),4.6rem)]">Filmabend</h1>
         </div>
         <p className="text-lg text-muted">
           Jeder wischt durch Filme, die bei euch laufen. Am Ende steht der eine, auf den alle Bock haben.

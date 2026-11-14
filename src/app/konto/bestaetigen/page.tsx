@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { Brand } from "@/components/Brand";
 import { ConfirmLogin } from "@/components/ConfirmLogin";
 
-export const metadata = { title: "Anmelden – Choosify", referrer: "no-referrer" as const };
+export const metadata = { title: "Anmelden – Filmabend", referrer: "no-referrer" as const };
 
 async function Confirm({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const raw = (await searchParams).token_hash;

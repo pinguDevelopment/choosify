@@ -40,7 +40,7 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
             <p className="text-sm text-muted">{state.participants.length} im Saal · QR scannen lassen</p>
             <button type="button" className="text-sm text-accent underline decoration-accent/40 underline-offset-4" onClick={async () => {
             if (!qr) return;
-            if (navigator.share) await navigator.share({ title: "Choosify", url: qr.url }).catch(() => {});
+            if (navigator.share) await navigator.share({ title: "Filmabend", url: qr.url }).catch(() => {});
             else {
               await navigator.clipboard.writeText(qr.url);
               setCopied(true);
@@ -64,7 +64,7 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
           className="text-muted underline decoration-line underline-offset-4 hover:text-text"
           onClick={async () => {
             if (!qr) return;
-            if (navigator.share) await navigator.share({ title: "Choosify", url: qr.url }).catch(() => {});
+            if (navigator.share) await navigator.share({ title: "Filmabend", url: qr.url }).catch(() => {});
             else {
               await navigator.clipboard.writeText(qr.url);
               setCopied(true);

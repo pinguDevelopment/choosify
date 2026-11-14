@@ -22,12 +22,15 @@ Die Prüfung ganz unten muss ein leeres Ergebnis liefern.
 
 **Authentication → URL Configuration**
 
-- **Site URL**: deine Produktions-Adresse, z. B. `https://choosify.vercel.app`
+- **Site URL**: deine Produktions-Adresse, z. B. `https://filmabend.vercel.app`
 - **Redirect URLs** (jede Zeile einzeln mit *Add URL*):
   - `http://localhost:3000/**` (lokal mit `npm run dev`)
   - `https://*.*.devtunnels.ms/**` (VS-Code-Port-Forwarding, Adressen wie `abc123-3000.euw.devtunnels.ms`)
-  - `https://choosify-*-steallights-projects.vercel.app/**` (Vercel-Vorschauen pro PR)
-  - `https://choosify.vercel.app/**` bzw. deine eigene Domain
+  - `https://filmabend-*-steallights-projects.vercel.app/**` (Vercel-Vorschauen pro PR)
+  - `https://filmabend.vercel.app/**` bzw. deine eigene Domain
+
+Die Vercel-Adressen hängen am Namen des Vercel-Projekts. Heißt das Projekt noch `choosify`, lauten sie `choosify.vercel.app`
+bzw. `choosify-*-steallights-projects.vercel.app`. Nach einer Umbenennung oder neuen Domain hier die neuen Adressen eintragen.
 
 Der Link in der Mail führt immer zurück auf die Adresse, auf der die Anmeldung angefordert wurde.
 Steht diese Adresse nicht in der Liste, schickt Supabase den Link auf die Site URL. Die App fängt das auf der Startseite ab,
@@ -38,10 +41,10 @@ aber dann landet man eben auf der Produktion statt lokal.
 **Authentication → Emails → Templates**. Beide Vorlagen **Magic Link** und **Confirm signup** bekommen denselben Inhalt
 (neue Adressen bekommen beim ersten Mal „Confirm signup“, danach „Magic Link“).
 
-Betreff: `Dein Login für Choosify`
+Betreff: `Dein Login für Filmabend`
 
 ```html
-<h2>Bei Choosify anmelden</h2>
+<h2>Bei Filmabend anmelden</h2>
 <p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">Jetzt anmelden</a></p>
 <p>Oder gib diesen Code in der App ein: <strong>{{ .Token }}</strong></p>
 <p>Der Code ist praktisch, wenn die Mail auf einem anderen Gerät ankommt als dem, auf dem du dich anmelden willst.</p>

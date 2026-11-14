@@ -2,7 +2,7 @@ import { AbspannClient } from "@/components/AbspannClient";
 import Link from "next/link";
 import { Brand } from "@/components/Brand";
 
-export const metadata = { title: "Abspann – Choosify" };
+export const metadata = { title: "Abspann – Filmabend" };
 
 export default function AbspannPage() {
   return (

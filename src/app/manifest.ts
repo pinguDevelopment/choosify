@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Choosify",
-    short_name: "Choosify",
+    name: "Filmabend",
+    short_name: "Filmabend",
     description: "Gemeinsam schnell einen Film finden",
     start_url: "/",
     display: "standalone",
