@@ -12,7 +12,26 @@ export function jsonError(status: number, message: string) {
   return Response.json({ error: message }, { status });
 }
 
+/**
+ * Fehlercodes, wenn die Datenbank älter ist als der Code (Update-SQL nicht ausgeführt
+ * oder Schema-Cache von PostgREST nicht neu geladen): Spalte, Tabelle oder Funktion fehlt.
+ */
+const OUTDATED_SCHEMA = new Set(["PGRST202", "PGRST204", "PGRST205", "42703", "42P01", "42883"]);
+
+export function isOutdatedSchema(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === "string" && OUTDATED_SCHEMA.has(code);
+}
+
 export function serverError(err: unknown) {
+  if (isOutdatedSchema(err)) {
+    const e = err as { code: string; message?: string };
+    console.error(
+      `Datenbank ist nicht aktuell (${e.code}: ${e.message ?? ""}). ` +
+        "Führe die fehlenden SQL-Updates aus supabase/ im Supabase SQL Editor aus.",
+    );
+    return jsonError(503, "Die Datenbank ist noch nicht auf dem neuesten Stand. Der Host muss die SQL-Updates einspielen.");
+  }
   console.error(err);
   return jsonError(500, "Interner Fehler");
 }
