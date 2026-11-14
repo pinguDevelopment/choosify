@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import type { Choice, Movie, RoomState } from "./types";
 import { RankingList } from "./Results";
 import { tiedLeaders } from "@/lib/ranking";
+import { SwipeIntro, introSeen } from "./SwipeIntro";
 
 const THRESHOLD = 110; // px, ab hier zählt ein Wisch
 const FLICK = 650; // px/s, ein schneller Schubs reicht auch ohne weiten Weg
@@ -20,6 +21,9 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
   // Letzte Stimme: steuert, wohin die Karte rausfliegt bzw. woher sie bei Rückgängig zurückkommt
   const [lastChoice, setLastChoice] = useState<Choice>("yes");
   const [returning, setReturning] = useState<{ id: number; choice: Choice } | null>(null);
+  // Einführung beim ersten Mal. Der Swiper rendert nie auf dem Server (erst nach dem Laden der Runde),
+  // deshalb darf localStorage direkt im Initialwert gelesen werden.
+  const [intro, setIntro] = useState(() => !introSeen());
   const choices = useRef(new Map<number, Choice>());
   const voted = useMemo<Record<number, Choice | null>>(() => ({ ...state.myVotes, ...local }), [state.myVotes, local]);
   const queue = state.movies.filter((m) => voted[m.tmdbId] == null);
@@ -67,6 +71,7 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
     undoRef.current = undo;
   });
   useEffect(() => {
+    if (intro) return; // Pfeiltasten blättern dann in der Einführung
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
       if (e.key === "ArrowRight" && top) castRef.current(top, "yes");
@@ -79,7 +84,7 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [top]);
+  }, [top, intro]);
 
   const progress = done / Math.max(1, state.movies.length);
 
@@ -92,7 +97,18 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
         <span className="font-display text-lg font-extrabold tabular-nums">
           {done}/{state.movies.length}
         </span>
+        <motion.button
+          type="button"
+          onClick={() => setIntro(true)}
+          whileTap={{ scale: 0.88 }}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 border-line font-display text-lg font-extrabold text-muted hover:border-accent hover:text-accent"
+          aria-label="Kurze Einführung anzeigen"
+          title="Wie funktioniert’s?"
+        >
+          ?
+        </motion.button>
       </div>
+      <AnimatePresence>{intro && queue.length > 0 && <SwipeIntro onClose={() => setIntro(false)} />}</AnimatePresence>
 
       {queue.length > 0 ? (
         <>

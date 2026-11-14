@@ -79,10 +79,38 @@ if (shots) await host.screenshot({ path: `${shots}/3-lobby.png`, fullPage: true 
 await host.getByRole("button", { name: "Swipen starten" }).click();
 await host.getByRole("button", { name: "Ja" }).waitFor();
 log("Swipen gestartet");
+const roomState = async (page) => (await page.request.get(`${BASE}/api/rooms/${code}`)).json();
+
+// Kurze Einführung beim ersten Swipen: drei Hinweise, überspringbar, pro Gerät nur einmal
+{
+  const intro = host.getByRole("dialog", { name: "Rechts Bock, links Nö" });
+  await intro.waitFor();
+  await host.waitForTimeout(1300); // Einblenden und Vorführung abwarten
+  if (shots) await host.screenshot({ path: `${shots}/4a-intro-1.png` });
+  await host.keyboard.press("ArrowRight"); // blättert in der Einführung, ist keine Stimme
+  await host.getByRole("dialog", { name: "Nach oben: Wäre ok" }).waitFor();
+  await host.waitForTimeout(1500);
+  if (shots) await host.screenshot({ path: `${shots}/4b-intro-2.png` });
+  await host.getByRole("button", { name: "Weiter" }).click();
+  await host.getByRole("dialog", { name: "Verwischt? Zurück!" }).waitFor();
+  await host.waitForTimeout(1200);
+  if (shots) await host.screenshot({ path: `${shots}/4c-intro-3.png` });
+  await host.getByRole("button", { name: "Los geht’s" }).click();
+  await host.getByRole("dialog").waitFor({ state: "detached" });
+  assert.equal(Object.keys((await roomState(host)).myVotes).length, 0, "Pfeiltaste in der Einführung zählt nicht als Stimme");
+  await host.reload();
+  await host.getByRole("button", { name: "Ja" }).waitFor();
+  await host.waitForTimeout(800);
+  assert.equal(await host.getByRole("dialog").count(), 0, "Einführung kommt nur einmal pro Gerät");
+  await host.getByRole("button", { name: "Kurze Einführung anzeigen" }).click();
+  await host.getByRole("dialog", { name: "Rechts Bock, links Nö" }).waitFor();
+  await host.keyboard.press("Escape");
+  await host.getByRole("dialog").waitFor({ state: "detached" });
+  log("Einführung: 3 Hinweise, nur einmal, über ? wieder abrufbar");
+}
 
 // Alle stimmen ab. Jede Person hat eine eigene Reihenfolge, deshalb wird pro Film entschieden:
 // plan = { tmdbId: "Ja" | "Wäre ok" }, alles andere "Nein".
-const roomState = async (page) => (await page.request.get(`${BASE}/api/rooms/${code}`)).json();
 async function swipeAll(page, plan) {
   const st = await roomState(page);
   const open = st.movies.filter((m) => st.myVotes[m.tmdbId] == null);
@@ -92,7 +120,11 @@ async function swipeAll(page, plan) {
   await page.getByText("Du bist durch!").waitFor();
   return st.movies.length;
 }
-for (const g of guests) await g.getByRole("button", { name: "Ja" }).waitFor({ timeout: 8000 });
+for (const g of guests) {
+  await g.getByRole("button", { name: "Ja" }).waitFor({ timeout: 8000 });
+  await g.getByRole("button", { name: "Überspringen" }).click();
+  await g.getByRole("dialog").waitFor({ state: "detached" });
+}
 if (shots) await guests[0].screenshot({ path: `${shots}/4-swipe.png` });
 // Karte zeigt Genres und deutsche Tags (keine englischen TMDB-Schlagwörter)
 {
