@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { RoomClient } from "@/components/room/RoomClient";
 
-export const metadata = { title: "Runde – Choosify" };
+export const metadata = { title: "Runde – Filmabend" };
 
 async function Room({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;

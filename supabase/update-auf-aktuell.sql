@@ -1,4 +1,4 @@
--- Choosify: bringt eine bestehende Datenbank auf den aktuellen Stand (Stand 14.11., mit Konten und Bewertungen).
+-- Filmabend: bringt eine bestehende Datenbank auf den aktuellen Stand (Stand 14.11., mit Konten und Bewertungen).
 -- Darf beliebig oft ausgeführt werden, egal welche Updates schon gelaufen sind.
 -- Im Supabase-Dashboard unter "SQL Editor" komplett einfügen und auf "Run" klicken.
 -- Ganz unten steht eine Prüfung: Sie listet alles, was noch fehlt (leeres Ergebnis = alles da).

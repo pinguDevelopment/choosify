@@ -1,8 +1,8 @@
-# Choosify – Hinweise für Claude
+# Filmabend – Hinweise für Claude
 
 @AGENTS.md
 
-Choosify ist eine deutschsprachige Web-App für Filmabende: Eine Gruppe tritt per QR-Code einer Runde bei, jede Person wählt Genres, alle swipen durch Filmvorschläge, und am Ende steht genau ein Film fest. Der Host legt fest, welche Streaming-Anbieter zählen. Gesehene Filme landen im **Abspann** (Watchlist einer **Crew**, also einer festen Gruppe ohne Accounts) und werden nicht mehr vorgeschlagen.
+Filmabend ist eine deutschsprachige Web-App für Filmabende: Eine Gruppe tritt per QR-Code einer Runde bei, jede Person wählt Genres, alle swipen durch Filmvorschläge, und am Ende steht genau ein Film fest. Der Host legt fest, welche Streaming-Anbieter zählen. Gesehene Filme landen im **Abspann** (Watchlist einer **Crew**, also einer festen Gruppe ohne Accounts) und werden nicht mehr vorgeschlagen.
 
 Die Oberfläche und alle Texte sind Deutsch. Mit dem Nutzer wird Deutsch gesprochen. Zuerst privat im Freundeskreis, später evtl. öffentlich: Sicherheit und Skalierbarkeit von Anfang an mitdenken.
 

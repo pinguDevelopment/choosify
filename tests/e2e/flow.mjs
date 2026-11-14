@@ -220,7 +220,7 @@ await guests[1].getByRole("link", { name: "Neue Runde starten" }).click();
 await guests[1].getByPlaceholder("z.B. Lena").fill("Cem");
 await guests[1].getByRole("button", { name: "Runde erstellen" }).click();
 await guests[1].waitForURL((u) => /\/r\/[A-Z0-9]{10}$/.test(u.pathname) && u.href !== firstRoom);
-await guests[1].getByRole("link", { name: "Choosify" }).first().click();
+await guests[1].getByRole("link", { name: "Filmabend" }).first().click();
 await guests[1].getByRole("button", { name: "Runde erstellen" }).waitFor({ timeout: 5000 });
 log("Neue Runde nach dem Ergebnis lässt sich wieder erstellen");
 
