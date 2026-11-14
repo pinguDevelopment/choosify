@@ -287,6 +287,7 @@ export async function addAbspann(
     poster_path: m.posterPath,
     release_year: m.year,
   });
+  if (error?.code === "P0001") throw new AppError(409, "Der Abspann ist voll");
   if (error) throw error;
 }
 

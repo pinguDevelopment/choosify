@@ -1,11 +1,11 @@
 import type { NextRequest } from "next/server";
-import { limited } from "@/lib/server/guard";
+import { limitedShared } from "@/lib/server/guard";
 import { handle, jsonError } from "@/lib/server/http";
 import { posterUrl, searchMovies } from "@/lib/server/tmdb";
 import { releaseYear } from "@/lib/candidates";
 
 export async function GET(req: NextRequest) {
-  const blocked = limited(req, "search", 30);
+  const blocked = await limitedShared(req, "search", 30);
   if (blocked) return blocked;
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim();
   if (q.length < 2 || q.length > 100) return jsonError(400, "Suchbegriff 2 bis 100 Zeichen");
