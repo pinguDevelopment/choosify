@@ -2,10 +2,11 @@ import "server-only";
 import { db } from "./db";
 import { AppError } from "./http";
 import { env } from "./env";
-import { discover, getProviders, getWatchProviders, posterUrl } from "./tmdb";
+import { discover, getMovieDetails, getProviders, posterUrl, type MovieDetails } from "./tmdb";
+import { genreNames, movieTags } from "../tags";
 import { hashSecret, newRoomCode, newSecret } from "./tokens";
 import { setCrewCookie, setParticipantCookie, currentCrew, type Participant, type Room } from "./session";
-import { BUCKETS, mixBuckets, pickCandidates, randomPage, releaseYear, personalOrder, streamableOn, type Choice } from "../candidates";
+import { BUCKETS, mixBuckets, pickCandidates, randomPage, releaseYear, personalOrder, streamableOn, type Choice, type TmdbMovie } from "../candidates";
 import { runoffResult, tiedLeaders } from "../ranking";
 
 export { AppError };
@@ -118,19 +119,20 @@ async function findCandidates(room: Room, genreIds: number[], selections: number
       return pickCandidates([...more, ...first.results], selections, watched, ROOM_SIZE);
     }),
   );
-  if (room.any_source) return mixBuckets(lists, ROOM_SIZE);
+  // Pro Film ein Abruf: Verfügbarkeit, Schlagwörter (für die Tags) und Laufzeit
+  const withDetails = async (m: TmdbMovie) => {
+    try {
+      return { ...m, details: await getMovieDetails(m.id, room.region) };
+    } catch {
+      return { ...m, details: null as MovieDetails | null };
+    }
+  };
+  if (room.any_source) return Promise.all(mixBuckets(lists, ROOM_SIZE).map(withDetails));
   const mixed = mixBuckets(lists, Math.round(ROOM_SIZE * 1.6));
 
-  const checked = await Promise.all(
-    mixed.map(async (m) => {
-      try {
-        return streamableOn(await getWatchProviders(m.id, room.region), providerIds).length > 0 ? m : null;
-      } catch {
-        return null; // im Zweifel lieber weglassen
-      }
-    }),
-  );
-  return checked.filter((m) => m !== null).slice(0, ROOM_SIZE);
+  const checked = await Promise.all(mixed.map(withDetails));
+  // Ohne Details wissen wir nicht, ob er streambar ist: im Zweifel lieber weglassen
+  return checked.filter((m) => m.details && streamableOn(m.details.providers, providerIds).length > 0).slice(0, ROOM_SIZE);
 }
 
 /** Host startet das Swipen: Kandidaten aus TMDB holen, Abspann-Filme rausfiltern. */
@@ -168,6 +170,13 @@ export async function startVoting(room: Room, me: Participant) {
     release_year: releaseYear(m.release_date),
     vote_average: m.vote_average != null ? Math.round(m.vote_average * 10) / 10 : null,
     genre_ids: m.genre_ids ?? [],
+    runtime_min: m.details?.runtime ?? null,
+    tags: movieTags({
+      genreIds: m.genre_ids,
+      keywords: m.details?.keywords,
+      year: releaseYear(m.release_date),
+      rating: m.vote_average,
+    }),
   }));
   const { error: mErr } = await db().from("room_movies").insert(rows);
   if (mErr) throw mErr;
@@ -303,7 +312,7 @@ export async function roomState(room: Room, me: Participant | null) {
   const [{ data: movies, error: mErr }, { data: votes, error: vErr }] = await Promise.all([
     db()
       .from("room_movies")
-      .select("tmdb_id, title, overview, poster_path, release_year, vote_average, genre_ids")
+      .select("tmdb_id, title, overview, poster_path, release_year, vote_average, genre_ids, runtime_min, tags")
       .eq("room_id", room.id)
       .order("position"),
     db().from("votes").select("participant_id, tmdb_id, choice").eq("room_id", room.id),
@@ -339,6 +348,12 @@ export async function roomState(room: Room, me: Participant | null) {
         year: m.release_year,
         rating: m.vote_average != null ? Number(m.vote_average) : null,
         genreIds: m.genre_ids,
+        genres: genreNames(m.genre_ids),
+        // Runden von vor dem Tag-Update haben keine gespeicherten Tags: dann nur aus den Genres
+        tags: (m.tags as string[] | null)?.length
+          ? (m.tags as string[])
+          : movieTags({ genreIds: m.genre_ids, year: m.release_year, rating: m.vote_average != null ? Number(m.vote_average) : null }),
+        runtime: m.runtime_min,
       })),
       me.id,
     ),

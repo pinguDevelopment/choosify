@@ -315,15 +315,40 @@ function SwipeCard({
         </>
       )}
       <div className="absolute inset-x-0 bottom-0 p-5">
+        {movie.genres?.length > 0 && (
+          <p className="mb-1 text-xs font-bold tracking-[0.14em] text-accent uppercase">
+            <span className="sr-only">Genre: </span>
+            {movie.genres.join(" · ")}
+          </p>
+        )}
         <h3 className="text-4xl">{movie.title}</h3>
-        <p className="mt-1.5 flex gap-3 text-muted">
+        <p className="mt-1.5 flex flex-wrap gap-x-3 text-muted">
           {movie.year && <span>{movie.year}</span>}
+          {movie.runtime != null && <span>{formatRuntime(movie.runtime)}</span>}
           {movie.rating != null && <span className="text-accent">★ {movie.rating.toFixed(1)}</span>}
         </p>
-        {movie.overview && <p className="mt-2 line-clamp-4 text-[0.95rem] text-text/90">{movie.overview}</p>}
+        {movie.overview && (
+          <p className={`mt-2 text-[0.95rem] text-text/90 ${movie.tags?.length ? "line-clamp-3" : "line-clamp-4"}`}>{movie.overview}</p>
+        )}
+        {movie.tags?.length > 0 && (
+          <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Tags">
+            {movie.tags.map((t) => (
+              <li key={t} className="rounded-full border border-ticket/45 bg-black/30 px-2.5 py-0.5 text-sm font-semibold text-ticket backdrop-blur-sm">
+                #{t}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </motion.article>
   );
+}
+
+/** 112 -> "1 Std. 52 Min.", 45 -> "45 Min." */
+function formatRuntime(min: number) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h ? `${h} Std.${m ? ` ${m} Min.` : ""}` : `${m} Min.`;
 }
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));

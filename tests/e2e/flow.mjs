@@ -94,6 +94,15 @@ async function swipeAll(page, plan) {
 }
 for (const g of guests) await g.getByRole("button", { name: "Ja" }).waitFor({ timeout: 8000 });
 if (shots) await guests[0].screenshot({ path: `${shots}/4-swipe.png` });
+// Karte zeigt Genres und deutsche Tags (keine englischen TMDB-Schlagwörter)
+{
+  const top = guests[0].locator("article").last();
+  assert.match(await top.locator("p").first().textContent(), /^Genre: \S+/, "Genre-Zeile fehlt");
+  const tags = await top.getByRole("list", { name: "Tags" }).getByRole("listitem").allInnerTexts();
+  assert.ok(tags.length >= 1 && tags.length <= 4, `1 bis 4 Tags erwartet, waren ${tags.length}`);
+  for (const t of tags) assert.match(t, /^#[a-zäöüß]+$/, `Tag ${t}`);
+  log("Karte zeigt Genres und Tags:", tags.join(" "));
+}
 // Ein Swipe per Drag (Touch-Geste) testen
 const card = guests[0].locator("article").last();
 const box = await card.boundingBox();
@@ -148,7 +157,8 @@ if (shots) await host.screenshot({ path: `${shots}/5-zwischenstand.png`, fullPag
 
 // Gleichstand -> Stichwahl -> genau ein Gewinner
 const finishBtn = host.getByRole("button", { name: /Abstimmung beenden/ });
-assert.match(await finishBtn.textContent(), /Stichwahl \(2 Filme\)/);
+// Der Knopftext hängt am nächsten Live-Abruf, deshalb darauf warten statt sofort zu lesen
+await host.getByRole("button", { name: /Stichwahl \(2 Filme\)/ }).waitFor({ timeout: 8000 });
 await finishBtn.click();
 await host.getByRole("heading", { name: "Stichwahl" }).waitFor();
 await guests[1].getByRole("heading", { name: "Stichwahl" }).waitFor({ timeout: 8000 });
