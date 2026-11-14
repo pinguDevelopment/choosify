@@ -5,7 +5,7 @@ import type { RankingRow, RoomState } from "./types";
 import { Confetti } from "./Confetti";
 
 export function RankingList({ ranking }: { ranking: RankingRow[] }) {
-  if (!ranking.length) return <p className="text-muted">Noch hat niemand Ja gesagt.</p>;
+  if (!ranking.length) return <p className="text-muted">Noch hat niemand Ja oder Wäre ok gesagt.</p>;
   return (
     <ol className="flex flex-col">
       <AnimatePresence initial={false}>
@@ -31,8 +31,15 @@ export function RankingList({ ranking }: { ranking: RankingRow[] }) {
             <p className="truncate text-lg font-semibold">{r.title}</p>
             <p className="text-sm text-muted">{r.year ?? ""}</p>
           </div>
-          <span className={`font-semibold ${r.unanimous ? "text-yes" : "text-muted"}`}>
-            {r.unanimous ? "alle ♥" : `${r.likes} ♥`}
+          <span className="flex flex-col items-end leading-tight">
+            <span className={`font-semibold ${r.unanimous ? "text-yes" : r.acceptable ? "text-accent" : "text-muted"}`}>
+              {r.unanimous ? "alle ♥" : r.acceptable ? "alle dabei" : `${r.likes} ♥`}
+            </span>
+            {!r.unanimous && (
+              <span className="text-xs text-muted">
+                {r.acceptable ? `${r.likes} ♥ · ${r.maybes} ok` : `${r.maybes} ok${r.dislikes ? ` · ${r.dislikes} ✕` : ""}`}
+              </span>
+            )}
           </span>
         </motion.li>
       ))}
@@ -59,8 +66,19 @@ export function Results({ state }: { state: RoomState }) {
             )}
             <div className="flex flex-col gap-3">
               <p className="text-lg">
-                {winner.unanimous ? "Alle haben Bock." : `${winner.likes} von ${state.participants.length} haben Bock.`}
+                {winner.unanimous
+                  ? "Alle haben Bock."
+                  : winner.acceptable
+                    ? `Alle sind dabei: ${winner.likes} haben Bock, ${winner.maybes} fänden es ok.`
+                    : `${winner.likes} von ${state.participants.length} haben Bock, ${winner.maybes} fänden es ok.`}
               </p>
+              {state.runoff?.tally && (
+                <p className="text-sm text-muted">
+                  {state.runoff.decidedByRating
+                    ? `Stichwahl unentschieden (${state.runoff.tally[winner.tmdbId] ?? 0} Stimmen), die bessere TMDB-Bewertung hat entschieden.`
+                    : `In der Stichwahl gewonnen: ${state.runoff.tally[winner.tmdbId] ?? 0} von ${state.runoff.votes} Stimmen.`}
+                </p>
+              )}
               <a
                 className="btn-ghost self-start py-2.5"
                 href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${winner.title} ${winner.year ?? ""} Trailer deutsch`)}`}
@@ -75,12 +93,13 @@ export function Results({ state }: { state: RoomState }) {
       ) : (
         <section className="card">
           <h1 className="text-3xl">Kein Treffer</h1>
-          <p className="mt-2 text-muted">Niemand hat Ja gesagt. Startet eine neue Runde mit anderen Genres oder mehr Diensten.</p>
+          <p className="mt-2 text-muted">Niemand hat Ja oder Wäre ok gesagt. Startet eine neue Runde mit anderen Genres oder mehr Diensten.</p>
         </section>
       )}
       <section className="flex flex-col gap-2">
         <h2 className="text-3xl">Rangliste</h2>
-        <RankingList ranking={state.ranking} />
+        {/* Der Gewinner (ggf. aus der Stichwahl) steht immer oben */}
+        <RankingList ranking={winner ? [winner, ...state.ranking.filter((r) => r !== winner)] : state.ranking} />
       </section>
       <Link href="/" className="btn-primary">
         Neue Runde starten

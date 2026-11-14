@@ -1,4 +1,6 @@
 // Spiegel der Server-Antwort von GET /api/rooms/[code]
+export type Choice = "yes" | "maybe" | "no";
+
 export type Movie = {
   tmdbId: number;
   title: string;
@@ -16,19 +18,30 @@ export type RankingRow = {
   year: number | null;
   rating: number | null;
   likes: number;
+  maybes: number;
   dislikes: number;
   unanimous: boolean;
+  /** niemand ist dagegen und alle haben Ja oder Wäre ok gesagt */
+  acceptable: boolean;
 };
 
 export type RoomState = {
   code: string;
-  status: "lobby" | "voting" | "done";
+  status: "lobby" | "voting" | "runoff" | "done";
   region: string;
   providerIds: number[];
   me: { name: string; isHost: boolean; genresDone: boolean; genreIds: number[] } | null;
   participants: { name: string; isHost: boolean; genresDone: boolean; voted: number }[];
   movies: Movie[];
-  myVotes: Record<number, boolean>;
+  myVotes: Record<number, Choice>;
   ranking: RankingRow[];
+  /** Stichwahl bei Gleichstand; tally gibt es erst nach dem Ende */
+  runoff: {
+    tmdbIds: number[];
+    myPick: number | null;
+    votes: number;
+    tally: Record<number, number> | null;
+    decidedByRating: boolean;
+  } | null;
   winner: number | null;
 };
