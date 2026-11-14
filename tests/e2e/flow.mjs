@@ -20,7 +20,13 @@ for (const pg of [host, ...guests]) {
 // Host erstellt Runde mit Netflix
 await host.goto(BASE);
 await host.getByPlaceholder("z.B. Lena").fill("Lena");
-await host.getByRole("button", { name: "Netflix" }).click();
+// Erst nur bekannte Dienste, Varianten und Channels unter "Mehr anzeigen"
+await host.getByRole("button", { name: "Netflix", exact: true }).waitFor();
+assert.equal(await host.getByRole("button", { name: "MUBI Amazon Channel" }).count(), 0, "Nischendienste erst auf Klick");
+await host.getByRole("button", { name: /Mehr anzeigen/ }).click();
+await host.getByRole("button", { name: "MUBI Amazon Channel" }).waitFor();
+await host.getByRole("button", { name: "Weniger anzeigen" }).click();
+await host.getByRole("button", { name: "Netflix", exact: true }).click();
 if (shots) await host.screenshot({ path: `${shots}/1-start.png` });
 await host.getByRole("button", { name: "Runde erstellen" }).click();
 await host.waitForURL(/\/r\/[A-Z0-9]{10}$/);
@@ -175,6 +181,18 @@ const s2 = await (await host.request.get(`${BASE}/api/rooms/${code2}`)).json();
 const titles = s2.movies.map((m) => m.title);
 assert.ok(!titles.includes(winner) && !titles.includes("Testfilm 50"), "Abspann-Filme ausgeschlossen");
 log("Neue Runde schließt Abspann-Filme aus");
+// Im Mock ist jeder 4. Film nur zum Leihen (z. B. noch im Kino): der darf nie vorkommen
+assert.ok(s2.movies.length > 0 && s2.movies.every((m) => m.tmdbId % 4 !== 3), "nur Filme, die im Abo laufen");
+assert.ok(hostState.movies.every((m) => m.tmdbId % 4 !== 3), "auch in der ersten Runde nur Streambares");
+log("Nur Filme, die gerade im Abo laufen");
+// "Sonstige / eigene Quelle": dann dürfen auch Filme kommen, die nirgends im Abo laufen
+const res3 = await host.request.post(`${BASE}/api/rooms`, { headers: { Origin: BASE }, data: { hostName: "Lena", providerIds: [8], anySource: true } });
+const code3 = (await res3.json()).code;
+await host.request.post(`${BASE}/api/rooms/${code3}/genres`, { headers: { Origin: BASE }, data: { genreIds: [] } });
+assert.equal((await host.request.post(`${BASE}/api/rooms/${code3}/start`, { headers: { Origin: BASE }, data: {} })).status(), 200);
+const s3 = await (await host.request.get(`${BASE}/api/rooms/${code3}`)).json();
+assert.ok(s3.movies.some((m) => m.tmdbId % 4 === 3), "mit eigener Quelle auch Leih-/Kauffilme");
+log("Sonstige / eigene Quelle schlägt alle Filme vor");
 
 // ---- Sicherheitschecks ------------------------------------------------------
 const api = guests[0].request;

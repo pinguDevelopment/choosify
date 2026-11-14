@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { env, tmdbMock } from "./env";
 import { mockTmdb } from "./tmdb-mock";
-import { discoverParams, type DiscoverOptions, type TmdbMovie } from "../candidates";
+import { discoverParams, featuredRank, type DiscoverOptions, type TmdbMovie, type WatchProviderEntry } from "../candidates";
 
 const BASE = "https://api.themoviedb.org/3";
 
@@ -39,7 +39,7 @@ const movieSchema = z.object({
 });
 
 export type Genre = { id: number; name: string };
-export type Provider = { id: number; name: string; logoPath: string | null; priority: number };
+export type Provider = { id: number; name: string; logoPath: string | null; priority: number; featured: boolean };
 
 export async function getGenres(): Promise<Genre[]> {
   const data = await tmdb(
@@ -67,24 +67,42 @@ export async function getProviders(region: string): Promise<Provider[]> {
     }),
     86400,
   );
+  // Bekannte Dienste zuerst (feste Reihenfolge), danach der Rest nach TMDB-Priorität
   return data.results
-    .map((p) => ({
-      id: p.provider_id,
-      name: p.provider_name,
-      logoPath: p.logo_path ?? null,
-      priority: p.display_priorities?.[region] ?? 999,
-    }))
+    .map((p) => {
+      const rank = featuredRank(p.provider_name, p.provider_id);
+      return {
+        id: p.provider_id,
+        name: p.provider_name,
+        logoPath: p.logo_path ?? null,
+        priority: rank >= 0 ? rank - 1000 : (p.display_priorities?.[region] ?? 999),
+        featured: rank >= 0,
+      };
+    })
     .sort((a, b) => a.priority - b.priority);
 }
 
-export async function discover(o: DiscoverOptions): Promise<TmdbMovie[]> {
+export async function discover(o: DiscoverOptions): Promise<{ results: TmdbMovie[]; totalPages: number }> {
   const data = await tmdb(
     "/discover/movie",
     discoverParams(o),
-    z.object({ results: z.array(movieSchema) }),
+    z.object({ results: z.array(movieSchema), total_pages: z.number().int().nonnegative().optional() }),
     1800,
   );
-  return data.results;
+  return { results: data.results, totalPages: data.total_pages ?? 1 };
+}
+
+const providerList = z.array(z.object({ provider_id: z.number().int() })).optional();
+
+/** Wo läuft der Film gerade? (TMDB-Daten von JustWatch, pro Region) */
+export async function getWatchProviders(id: number, region: string): Promise<WatchProviderEntry | undefined> {
+  const data = await tmdb(
+    `/movie/${id}/watch/providers`,
+    new URLSearchParams(),
+    z.object({ results: z.record(z.string(), z.object({ flatrate: providerList, free: providerList, ads: providerList })) }),
+    21600,
+  );
+  return data.results[region];
 }
 
 export async function getMovie(id: number): Promise<TmdbMovie> {

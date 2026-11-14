@@ -10,6 +10,7 @@ export function CreateRoom() {
   const [providers, setProviders] = useState<Provider[] | null>(null);
   const [picked, setPicked] = useState<number[]>([]);
   const [showAll, setShowAll] = useState(false);
+  const [anySource, setAnySource] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +20,10 @@ export function CreateRoom() {
       .catch(() => setProviders([]));
   }, []);
 
-  const visible = providers ? (showAll ? providers : providers.slice(0, 12)) : [];
+  // Erst nur die bekannten Dienste, der Rest (Channels, Werbe-Varianten, Nischen) unter "Mehr"
+  const featured = providers?.filter((p) => p.featured) ?? [];
+  const others = providers?.filter((p) => !p.featured) ?? [];
+  const visible = showAll || featured.length === 0 ? (providers ?? []) : [...featured, ...others.filter((p) => picked.includes(p.id))];
   const toggle = (id: number) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
@@ -29,7 +33,7 @@ export function CreateRoom() {
     setError(null);
     try {
       const { code } = await api<{ code: string }>("/api/rooms", {
-        body: { hostName: name, region: "DE", providerIds: picked },
+        body: { hostName: name, region: "DE", providerIds: picked, anySource },
       });
       router.push(`/r/${code}`);
     } catch (err) {
@@ -54,7 +58,7 @@ export function CreateRoom() {
       </label>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-muted">
-          Welche Dienste habt ihr? Ohne Auswahl schlagen wir alle Filme vor.
+          Welche Dienste habt ihr? Wir schlagen nur Filme vor, die dort gerade im Abo laufen. Ohne Auswahl nehmen wir alle bekannten Dienste.
         </legend>
         {providers === null ? (
           <p className="text-sm text-muted">Lade Anbieter …</p>
@@ -69,12 +73,18 @@ export function CreateRoom() {
                 {p.name}
               </Chip>
             ))}
-            {providers.length > 12 && (
+            {featured.length > 0 && others.length > 0 && (
               <button type="button" className="chip text-muted" onClick={() => setShowAll((s) => !s)}>
-                {showAll ? "Weniger" : `+${providers.length - 12} weitere`}
+                {showAll ? "Weniger anzeigen" : `Mehr anzeigen (+${others.length})`}
               </button>
             )}
+            <Chip pressed={anySource} onToggle={() => setAnySource((v) => !v)}>
+              Sonstige / eigene Quelle
+            </Chip>
           </div>
+        )}
+        {anySource && (
+          <p className="text-sm text-muted">Es kommen auch Filme, die bei keinem gewählten Dienst im Abo laufen, z. B. für eure eigene Sammlung oder zum Leihen.</p>
         )}
       </fieldset>
       {error && <p className="text-sm text-no">{error}</p>}
