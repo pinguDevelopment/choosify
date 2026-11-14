@@ -181,6 +181,17 @@ assert.equal(await guests[1].locator("h1:visible").textContent(), winner);
 if (shots) await guests[1].screenshot({ path: `${shots}/6-ergebnis.png`, fullPage: true });
 log("Stichwahl entscheidet, Gewinner bei allen gleich:", winner);
 
+// "Neue Runde starten" nach dem Ergebnis: Der Knopf darf nicht auf "wird erstellt …" hängen bleiben
+// (Next.js behält versteckte Seiten samt State, siehe CreateRoom).
+const firstRoom = guests[1].url();
+await guests[1].getByRole("link", { name: "Neue Runde starten" }).click();
+await guests[1].getByPlaceholder("z.B. Lena").fill("Cem");
+await guests[1].getByRole("button", { name: "Runde erstellen" }).click();
+await guests[1].waitForURL((u) => /\/r\/[A-Z0-9]{10}$/.test(u.pathname) && u.href !== firstRoom);
+await guests[1].getByRole("link", { name: "Choosify" }).first().click();
+await guests[1].getByRole("button", { name: "Runde erstellen" }).waitFor({ timeout: 5000 });
+log("Neue Runde nach dem Ergebnis lässt sich wieder erstellen");
+
 // Abspann: Gewinner wurde übernommen
 await host.goto(`${BASE}/abspann`);
 await host.getByText(winner, { exact: false }).waitFor();

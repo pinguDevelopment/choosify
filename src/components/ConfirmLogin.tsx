@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { loadLocalFavorites } from "@/lib/favorites";
 
@@ -10,6 +10,11 @@ export function ConfirmLogin({ tokenHash }: { tokenHash: string | null }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Next.js (Cache Components) versteckt Seiten beim Navigieren nur (React Activity) und
+  // behält ihren State. Ohne Reset stünde der Knopf nach "Zurück zur Startseite" noch auf
+  // "wird erstellt …" und ließe sich nicht mehr drücken.
+  useLayoutEffect(() => () => setBusy(false), []);
 
   // Token aus der Adresszeile entfernen (Verlauf, geteilte Bildschirme).
   useEffect(() => {
