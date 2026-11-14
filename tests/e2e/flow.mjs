@@ -192,15 +192,92 @@ await guests[1].getByRole("link", { name: "Choosify" }).first().click();
 await guests[1].getByRole("button", { name: "Runde erstellen" }).waitFor({ timeout: 5000 });
 log("Neue Runde nach dem Ergebnis lässt sich wieder erstellen");
 
+// Bewerten nach dem Film: Link aus dem Ergebnis, ohne Konto, Name vorausgefüllt
+await host.goto(url);
+await host.getByText("Heute läuft").waitFor({ timeout: 8000 });
+const rateToken = (await roomState(host)).rateToken;
+assert.ok(rateToken, "Gewinner hat einen Bewertungslink");
+await host.getByRole("link", { name: "★ Bewerten" }).click();
+await host.waitForURL(/\/bewerten\//);
+await host.getByRole("heading", { name: winner }).waitFor();
+assert.equal(await host.getByPlaceholder("z.B. Lena").inputValue(), "Lena", "Name aus der Runde vorausgefüllt");
+await host.getByText("Du bist die erste Person.", { exact: false }).waitFor();
+await host.getByRole("radio", { name: "5 Sterne" }).click();
+await host.getByText("Großartig").waitFor();
+if (shots) {
+  await host.waitForTimeout(700); // Einblend-Animation abwarten
+  await host.screenshot({ path: `${shots}/6b-bewerten.png`, fullPage: true });
+}
+await host.getByRole("button", { name: "Sterne vergeben" }).click();
+await host.getByText("Schnitt der Crew").waitFor();
+log("Host hat bewertet");
+
+// Gast bewertet über denselben Link (z. B. aus dem Gruppenchat), sieht vorher nur die Anzahl
+const rateUrl = `${BASE}/bewerten/${rateToken}`;
+await guests[0].goto(rateUrl);
+await guests[0].getByText("1 hat schon bewertet", { exact: false }).waitFor();
+assert.equal(await guests[0].getByText("Lena", { exact: true }).count(), 0, "fremde Sterne erst nach der eigenen Bewertung");
+await guests[0].getByPlaceholder("z.B. Lena").fill("Ben");
+await guests[0].getByRole("radio", { name: "3 Sterne" }).click();
+await guests[0].getByRole("button", { name: "Sterne vergeben" }).click();
+await guests[0].getByRole("img", { name: "4,0 von 5 Sternen" }).waitFor();
+// Ändern: dieselbe Person (Cookie) überschreibt ihre Bewertung statt eine neue anzulegen
+await guests[0].getByRole("button", { name: "Ändern" }).click();
+await guests[0].getByRole("radio", { name: "4 Sterne" }).click();
+await guests[0].getByRole("button", { name: "Bewertung ändern" }).click();
+await guests[0].getByRole("img", { name: "4,5 von 5 Sternen" }).waitFor();
+if (shots) {
+  await guests[0].waitForTimeout(700); // Einblend-Animation abwarten
+  await guests[0].screenshot({ path: `${shots}/6c-bewertet.png`, fullPage: true });
+}
+log("Gast hat bewertet und geändert, Schnitt stimmt");
+
+// Gleicher Name von einem anderen Gerät wird abgelehnt
+await guests[1].goto(rateUrl);
+await guests[1].getByPlaceholder("z.B. Lena").fill("lena");
+await guests[1].getByRole("radio", { name: "1 Stern" }).click();
+await guests[1].getByRole("button", { name: "Sterne vergeben" }).click();
+await guests[1].getByText("Diesen Namen hat bei diesem Film schon jemand anderes benutzt").waitFor();
+log("Doppelter Name beim Bewerten abgelehnt");
+
+// Sicherheit: gefälschter Link, fremde Origin, ungültige Sterne
+const rapi = guests[1].request;
+const forged = rateToken.replace(/\.(\d+)\./, (_, id) => `.${Number(id) + 1}.`);
+let rr = await rapi.get(`${BASE}/api/bewerten/${forged}`);
+assert.equal(rr.status(), 404, "Signatur passt nicht zu einem anderen Film");
+rr = await rapi.post(`${BASE}/api/bewerten/${rateToken}`, { headers: { Origin: "https://evil.example" }, data: { name: "X", stars: 5 } });
+assert.equal(rr.status(), 403, "Fremde Origin beim Bewerten blockiert");
+for (const stars of [0, 6, 2.5, "5"]) {
+  rr = await rapi.post(`${BASE}/api/bewerten/${rateToken}`, { headers: { Origin: BASE }, data: { name: "Cem", stars } });
+  assert.equal(rr.status(), 400, `Sterne ${stars} abgelehnt`);
+}
+rr = await rapi.post(`${BASE}/api/bewerten/${rateToken}`, { headers: { Origin: BASE }, data: { name: "<b>x</b>", stars: 3 } });
+assert.equal(rr.status(), 400, "HTML im Namen abgelehnt");
+const raterCookie = (await guests[0].context().cookies()).find((c) => c.name === "fa_rater");
+assert.ok(raterCookie?.httpOnly, "Bewerter-Cookie ist httpOnly");
+log("Bewerten: Sicherheitschecks bestanden");
+
 // Abspann: Gewinner wurde übernommen
 await host.goto(`${BASE}/abspann`);
 await host.getByText(winner, { exact: false }).waitFor();
 log("Gewinner steht im Abspann");
 await host.getByPlaceholder("Titel suchen").fill("Testfilm 5");
 await host.getByRole("button", { name: /Testfilm 50/ }).click();
-await host.getByRole("button", { name: "Testfilm 50 entfernen" }).waitFor();
+await host.getByRole("button", { name: /^Testfilm 50/ }).waitFor();
 log("Film manuell zum Abspann hinzugefügt");
-if (shots) await host.screenshot({ path: `${shots}/7-abspann.png`, fullPage: true });
+// Bewertungen im Abspann: Schnitt, Einzelwertungen, Geschmack der Crew
+await host.getByRole("img", { name: "4,5 von 5 Sternen" }).waitFor();
+await host.getByRole("heading", { name: "Euer Geschmack" }).waitFor();
+await host.getByText("Mehr davon").waitFor();
+await host.getByRole("button", { name: new RegExp(`^${winner}`) }).click();
+await host.getByRole("button", { name: "Bewertung von Ben löschen" }).waitFor();
+if (shots) {
+  await host.waitForTimeout(700); // Einblend-Animation abwarten
+  await host.screenshot({ path: `${shots}/7-abspann.png`, fullPage: true });
+}
+await host.getByRole("button", { name: "Bewertung von Ben löschen" }).click();
+await host.getByRole("img", { name: "5,0 von 5 Sternen" }).first().waitFor();
+log("Abspann zeigt Schnitt und Einzelwertungen, Crew kann Bewertungen löschen");
 
 // Neue Runde: Abspann-Filme dürfen nicht mehr auftauchen
 const res = await host.request.post(`${BASE}/api/rooms`, {

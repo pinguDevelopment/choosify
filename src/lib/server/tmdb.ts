@@ -36,6 +36,8 @@ const movieSchema = z.object({
   vote_count: z.number().optional(),
   popularity: z.number().optional(),
   genre_ids: z.array(z.number().int()).optional(),
+  // Einzelabruf /movie/{id} liefert genres statt genre_ids
+  genres: z.array(z.object({ id: z.number().int() })).max(20).optional(),
 });
 
 export type Genre = { id: number; name: string };
@@ -127,7 +129,8 @@ export async function getMovieDetails(id: number, region: string): Promise<Movie
 }
 
 export async function getMovie(id: number): Promise<TmdbMovie> {
-  return tmdb(`/movie/${id}`, new URLSearchParams({ language: "de-DE" }), movieSchema, 86400);
+  const { genres, ...m } = await tmdb(`/movie/${id}`, new URLSearchParams({ language: "de-DE" }), movieSchema, 86400);
+  return { ...m, genre_ids: m.genre_ids ?? genres?.map((g) => g.id) ?? [] };
 }
 
 export async function searchMovies(query: string): Promise<TmdbMovie[]> {

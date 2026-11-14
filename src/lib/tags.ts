@@ -32,7 +32,7 @@ export function genreNames(ids: readonly number[] | null | undefined, max = 3): 
 }
 
 /** Stimmung pro Genre: so würde man den Film in einem Satz beschreiben. */
-const GENRE_MOOD: Record<number, string> = {
+export const GENRE_MOOD: Record<number, string> = {
   28: "action",
   12: "abenteuer",
   16: "animiert",

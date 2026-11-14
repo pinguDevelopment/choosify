@@ -1,6 +1,8 @@
 "use client";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
+import { useState } from "react";
+import { shareLink } from "@/lib/share";
 import type { RankingRow, RoomState } from "./types";
 import { Confetti } from "./Confetti";
 
@@ -96,6 +98,7 @@ export function Results({ state }: { state: RoomState }) {
           <p className="mt-2 text-muted">Niemand hat Ja oder Wäre ok gesagt. Startet eine neue Runde mit anderen Genres oder mehr Diensten.</p>
         </section>
       )}
+      {winner && state.rateToken && <RateCard token={state.rateToken} title={winner.title} name={state.me?.name ?? ""} />}
       <section className="flex flex-col gap-2">
         <h2 className="text-3xl">Rangliste</h2>
         {/* Der Gewinner (ggf. aus der Stichwahl) steht immer oben */}
@@ -105,5 +108,34 @@ export function Results({ state }: { state: RoomState }) {
         Neue Runde starten
       </Link>
     </>
+  );
+}
+
+/** Nach dem Film: Sterne vergeben. Der Link geht auch ohne Konto und lässt sich in die Gruppe schicken. */
+function RateCard({ token, title, name }: { token: string; title: string; name: string }) {
+  const [copied, setCopied] = useState(false);
+  const href = `/bewerten/${token}${name ? `?name=${encodeURIComponent(name)}` : ""}`;
+  return (
+    <section className="card flex flex-col gap-3">
+      <p className="font-display text-sm font-bold uppercase tracking-[0.18em] text-accent">Nach dem Film</p>
+      <h2 className="text-3xl leading-none">Wie war&apos;s?</h2>
+      <p className="text-muted">Gebt dem Film 1 bis 5 Sterne. Daraus lernt Choosify, was eurer Crew gefällt, und schlägt beim nächsten Mal Passenderes vor.</p>
+      <div className="flex gap-3">
+        <Link href={href} className="btn-primary flex-1 py-2.5">
+          ★ Bewerten
+        </Link>
+        <button
+          className="btn-ghost flex-1 py-2.5"
+          onClick={async () => {
+            if ((await shareLink(`${window.location.origin}/bewerten/${token}`, `${title} bewerten`)) === "copied") {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }
+          }}
+        >
+          {copied ? "Kopiert ✓" : "Link teilen"}
+        </button>
+      </div>
+    </section>
   );
 }

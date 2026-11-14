@@ -57,3 +57,8 @@ export const accountPatchSchema = z
     adoptDeviceCrew: z.literal(true).optional(),
   })
   .refine((v) => v.favorites || v.crewId || v.adoptDeviceCrew, "leer");
+
+// ---- Bewertungen im Abspann ----
+export const starsSchema = z.number().int().min(1).max(5);
+export const rateSchema = z.object({ name: nameSchema, stars: starsSchema });
+export const removeRatingSchema = z.object({ tmdbId: tmdbIdSchema, name: nameSchema });
