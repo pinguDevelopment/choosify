@@ -36,6 +36,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  // Nur für "npm run dev": erlaubt Zugriff über VS-Code-Port-Forwarding (Dev Tunnels) und das eigene WLAN.
+  allowedDevOrigins: ["**.devtunnels.ms", "10.*.*.*", "192.168.*.*"],
   images: {
     remotePatterns: [{ protocol: "https", hostname: "image.tmdb.org", pathname: "/t/p/**" }],
   },
