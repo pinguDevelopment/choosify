@@ -84,15 +84,16 @@ export function AbspannClient() {
           {data.crew.name} <span className="text-muted">({data.movies.length})</span>
         </h2>
         {data.movies.length === 0 && <p className="text-muted">Noch leer. Nach eurem ersten Filmabend steht hier der Gewinner.</p>}
-        <ul className="flex flex-col">
+        <ul className="flex flex-col gap-2">
           {data.movies.map((m) => (
-            <li key={m.tmdbId} className="flex items-center gap-3 border-b border-line/70 py-2 last:border-0">
+            <li key={m.tmdbId} className="flex items-center gap-3 rounded-xl bg-surface p-2 pr-3">
               <Thumb src={m.poster} />
-              <span className="min-w-0 flex-1 truncate">
-                {m.title} <span className="text-muted">{m.year ?? ""}</span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate font-semibold">{m.title}</span>
+                <span className="text-sm text-muted">{m.year ?? "Jahr unbekannt"}</span>
               </span>
               <button
-                className="text-sm text-muted hover:text-no"
+                className="rounded-full border border-line px-3 py-1 text-sm text-muted hover:border-no hover:text-no"
                 aria-label={`${m.title} entfernen`}
                 onClick={async () => {
                   try {
@@ -117,8 +118,8 @@ export function AbspannClient() {
 function Thumb({ src }: { src: string | null }) {
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" className="h-12 w-8 rounded object-cover" />
+    <img src={src} alt="" className="h-14 w-10 rounded-md object-cover" />
   ) : (
-    <div className="h-12 w-8 rounded bg-surface-2" />
+    <div className="h-14 w-10 rounded-md bg-surface-2" />
   );
 }
