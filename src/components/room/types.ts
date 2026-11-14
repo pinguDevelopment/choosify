@@ -50,4 +50,6 @@ export type RoomState = {
     decidedByRating: boolean;
   } | null;
   winner: number | null;
+  /** Bewertungslink für den Gewinner, sobald er im Abspann steht */
+  rateToken: string | null;
 };

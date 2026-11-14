@@ -4,7 +4,8 @@ import { handle, jsonError } from "@/lib/server/http";
 import { addAbspann, listAbspann, removeAbspann } from "@/lib/server/rooms";
 import { abspannSchema } from "@/lib/server/schemas";
 import { currentCrew } from "@/lib/server/session";
-import { getMovie } from "@/lib/server/tmdb";
+import { getMovie, getMovieDetails } from "@/lib/server/tmdb";
+import { movieTags } from "@/lib/tags";
 import { releaseYear } from "@/lib/candidates";
 
 export async function GET(req: NextRequest) {
@@ -12,8 +13,8 @@ export async function GET(req: NextRequest) {
   if (blocked) return blocked;
   return handle(async () => {
     const crew = await currentCrew();
-    if (!crew) return Response.json({ crew: null, movies: [] });
-    return Response.json({ crew: { name: crew.name }, movies: await listAbspann(crew.id) });
+    if (!crew) return Response.json({ crew: null, movies: [], taste: null });
+    return Response.json({ crew: { name: crew.name }, ...(await listAbspann(crew.id)) });
   });
 }
 
@@ -27,11 +28,16 @@ export async function POST(req: NextRequest) {
     if (!crew) return jsonError(401, "Keine Crew gefunden");
     // Filmdaten vom Server bei TMDB holen statt dem Client zu vertrauen.
     const m = await getMovie(body.data.tmdbId);
+    // Schlagwörter für die Tags (fürs Lernen des Geschmacks); ohne sie geht es auch
+    const keywords = await getMovieDetails(m.id, "DE").then((d) => d.keywords, () => []);
+    const year = releaseYear(m.release_date);
     await addAbspann(crew.id, {
       tmdbId: m.id,
       title: m.title,
       posterPath: m.poster_path ?? null,
-      year: releaseYear(m.release_date),
+      year,
+      genreIds: m.genre_ids ?? [],
+      tags: movieTags({ genreIds: m.genre_ids, keywords, year, rating: m.vote_average }),
     });
     return Response.json({ ok: true }, { status: 201 });
   });

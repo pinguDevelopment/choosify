@@ -1,4 +1,4 @@
--- Choosify: bringt eine bestehende Datenbank auf den aktuellen Stand (Stand 14.11., mit Konten).
+-- Choosify: bringt eine bestehende Datenbank auf den aktuellen Stand (Stand 14.11., mit Konten und Bewertungen).
 -- Darf beliebig oft ausgeführt werden, egal welche Updates schon gelaufen sind.
 -- Im Supabase-Dashboard unter "SQL Editor" komplett einfügen und auf "Run" klicken.
 -- Ganz unten steht eine Prüfung: Sie listet alles, was noch fehlt (leeres Ergebnis = alles da).
@@ -146,6 +146,56 @@ begin
 end
 $$;
 
+-- 5b) Bewertungen im Abspann (Sterne pro Person) und Genres/Tags der gesehenen Filme
+-- Genres und Tags der gesehenen Filme, damit der Geschmack ohne TMDB-Abruf berechnet werden kann.
+alter table abspann add column if not exists genre_ids integer[] not null default '{}';
+alter table abspann add column if not exists tags text[] not null default '{}';
+alter table abspann drop constraint if exists abspann_genre_ids_check;
+alter table abspann add constraint abspann_genre_ids_check check (cardinality(genre_ids) <= 20);
+alter table abspann drop constraint if exists abspann_tags_check;
+alter table abspann add constraint abspann_tags_check check (cardinality(tags) <= 6);
+
+-- Ältere Einträge: Genres und Tags aus noch vorhandenen Runden der Crew übernehmen.
+update abspann a
+set genre_ids = m.genre_ids, tags = m.tags
+from rooms r
+join room_movies m on m.room_id = r.id
+where r.crew_id = a.crew_id and m.tmdb_id = a.tmdb_id and a.genre_ids = '{}';
+
+create table if not exists ratings (
+  crew_id      uuid not null,
+  tmdb_id      integer not null,
+  rater_hash   text not null check (char_length(rater_hash) = 64),
+  name         text not null check (char_length(name) between 1 and 30),
+  stars        smallint not null check (stars between 1 and 5),
+  rated_at     timestamptz not null default now(),
+  primary key (crew_id, tmdb_id, rater_hash),
+  -- Fliegt der Film aus dem Abspann, verschwinden auch seine Bewertungen.
+  foreign key (crew_id, tmdb_id) references abspann(crew_id, tmdb_id) on delete cascade
+);
+-- Pro Film jeder Name nur einmal (ohne Groß-/Kleinschreibung).
+create unique index if not exists ratings_unique_name on ratings(crew_id, tmdb_id, lower(name));
+
+alter table ratings enable row level security;
+
+-- Missbrauchsschutz: höchstens 30 Bewertungen pro Film (wie Personen pro Runde).
+create or replace function ratings_limit() returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  -- Eigene Bewertung ändern (Upsert löst ebenfalls diesen Trigger aus) zählt nicht mit.
+  if (select count(*) from ratings
+      where crew_id = new.crew_id and tmdb_id = new.tmdb_id and rater_hash <> new.rater_hash) >= 30 then
+    raise exception 'Zu viele Bewertungen' using errcode = 'P0001';
+  end if;
+  return new;
+end
+$$;
+drop trigger if exists ratings_limit on ratings;
+create trigger ratings_limit before insert on ratings
+  for each row execute function ratings_limit();
+
 -- 6) Browser-Rollen haben weiterhin keinen Zugriff (alles läuft über den Server)
 do $$
 begin
@@ -164,7 +214,8 @@ select fehlt from (
   from (values ('votes','choice'), ('rooms','runoff_ids'), ('rooms','winner_to_abspann'),
                ('rooms','any_source'), ('runoff_votes','tmdb_id'),
                ('accounts','favorite_provider_ids'), ('account_sessions','token_hash'),
-               ('crews','account_id'), ('crews','last_used_at'), ('room_movies','tags')) need(t, c)
+               ('crews','account_id'), ('crews','last_used_at'), ('room_movies','tags'),
+               ('abspann','genre_ids'), ('abspann','tags'), ('ratings','stars')) need(t, c)
   where not exists (select 1 from information_schema.columns
                     where table_schema = 'public' and table_name = need.t and column_name = need.c)
   union all
@@ -173,7 +224,7 @@ select fehlt from (
                 where table_schema = 'public' and table_name = 'votes' and column_name = 'liked')
   union all
   select 'Funktion ' || f
-  from (values ('room_ranking'), ('rate_hit')) need(f)
+  from (values ('room_ranking'), ('rate_hit'), ('ratings_limit')) need(f)
   where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                     where n.nspname = 'public' and p.proname = need.f)
   union all
