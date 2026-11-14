@@ -42,6 +42,22 @@ const movies = Array.from({ length: 60 }, (_, i) => {
   };
 });
 
+// Echte TMDB-Schlagwörter (englisch), teils ohne passenden deutschen Tag
+const mockKeywords = [
+  ["time travel", "friendship", "sequel"],
+  ["based on true story", "biography"],
+  ["twist ending", "serial killer", "police"],
+  ["based on novel or book", "magic", "dragon"],
+  ["feel-good", "road trip"],
+  ["new york city"],
+  ["dystopia", "artificial intelligence (a.i.)", "robot"],
+];
+
+function watchProviders(id: number) {
+  if (mockOnlyRent(id)) return { results: { DE: { rent: [{ provider_id: 2 }] } } };
+  return { results: { DE: { flatrate: [{ provider_id: [8, 9, 337, 350][id % 4] }, { provider_id: 30 }] } } };
+}
+
 export function mockTmdb(path: string, params: URLSearchParams): unknown {
   if (path === "/genre/movie/list") return { genres };
   if (path === "/watch/providers/movie") return { results: providers };
@@ -49,17 +65,18 @@ export function mockTmdb(path: string, params: URLSearchParams): unknown {
     const q = (params.get("query") ?? "").toLowerCase();
     return { results: movies.filter((m) => m.title.toLowerCase().includes(q)) };
   }
-  const wp = path.match(/^\/movie\/(\d+)\/watch\/providers$/);
-  if (wp) {
-    const id = Number(wp[1]);
-    if (mockOnlyRent(id)) return { results: { DE: { rent: [{ provider_id: 2 }] } } };
-    return { results: { DE: { flatrate: [{ provider_id: [8, 9, 337, 350][id % 4] }, { provider_id: 30 }] } } };
-  }
   const single = path.match(/^\/movie\/(\d+)$/);
   if (single) {
-    const m = movies.find((x) => x.id === Number(single[1]));
+    const id = Number(single[1]);
+    const m = movies.find((x) => x.id === id);
     if (!m) throw new Error("Mock: Film nicht gefunden");
-    return m;
+    if (!params.get("append_to_response")) return m;
+    return {
+      ...m,
+      runtime: 85 + (id % 7) * 11,
+      keywords: { keywords: mockKeywords[id % mockKeywords.length].map((name) => ({ name })) },
+      "watch/providers": watchProviders(id),
+    };
   }
   if (path === "/discover/movie") {
     const want = (params.get("with_genres") ?? "").split("|").filter(Boolean).map(Number);
