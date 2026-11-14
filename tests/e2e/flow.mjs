@@ -22,11 +22,24 @@ await host.goto(BASE);
 await host.getByPlaceholder("z.B. Lena").fill("Lena");
 // Erst nur bekannte Dienste, Varianten und Channels unter "Mehr anzeigen"
 await host.getByRole("button", { name: "Netflix", exact: true }).waitFor();
-assert.equal(await host.getByRole("button", { name: "MUBI Amazon Channel" }).count(), 0, "Nischendienste erst auf Klick");
+assert.equal(await host.getByRole("button", { name: "MUBI Amazon Channel", exact: true }).count(), 0, "Nischendienste erst auf Klick");
 await host.getByRole("button", { name: /Mehr anzeigen/ }).click();
-await host.getByRole("button", { name: "MUBI Amazon Channel" }).waitFor();
+await host.getByRole("button", { name: "MUBI Amazon Channel", exact: true }).waitFor();
 await host.getByRole("button", { name: "Weniger anzeigen" }).click();
-await host.getByRole("button", { name: "Netflix", exact: true }).click();
+// Suche findet auch Dienste hinter "Mehr anzeigen"
+await host.getByRole("searchbox", { name: "Dienst suchen" }).fill("mubi");
+await host.getByRole("button", { name: "MUBI Amazon Channel", exact: true }).waitFor();
+assert.equal(await host.getByRole("button", { name: "Netflix", exact: true }).count(), 0, "Suche filtert");
+await host.getByRole("searchbox", { name: "Dienst suchen" }).fill("");
+// Favorit: Stern setzt Netflix, nach dem Neuladen ist Netflix vorausgewählt und steht vorne
+await host.getByRole("button", { name: "Netflix als Favorit" }).click();
+await host.reload();
+await host.getByPlaceholder("z.B. Lena").fill("Lena");
+const netflix = host.getByRole("button", { name: "Netflix", exact: true });
+await host.waitForFunction(() => document.querySelector('button[aria-pressed="true"]')?.textContent?.includes("Netflix"));
+assert.equal(await netflix.getAttribute("aria-pressed"), "true", "Favorit ist vorausgewählt");
+assert.equal(await host.getByRole("button", { name: "Netflix als Favorit" }).getAttribute("aria-pressed"), "true");
+log("Dienste: Suche und Favoriten funktionieren");
 if (shots) await host.screenshot({ path: `${shots}/1-start.png` });
 await host.getByRole("button", { name: "Runde erstellen" }).click();
 await host.waitForURL(/\/r\/[A-Z0-9]{10}$/);
