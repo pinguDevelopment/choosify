@@ -82,7 +82,8 @@ body {
   @apply rounded-[1.4rem] bg-surface/70 p-5;
 }
 @utility chip {
-  @apply rounded-full border-2 border-line px-4 py-2 text-[0.95rem] transition select-none hover:border-muted;
+  @apply rounded-full border-2 border-line px-4 py-2 text-[0.95rem] select-none hover:border-muted;
+  transition: background-color 260ms cubic-bezier(0.2, 0.8, 0.2, 1), color 260ms, border-color 260ms;
 }
 .chip[aria-pressed="true"] {
   @apply border-accent bg-accent text-accent-ink font-semibold;

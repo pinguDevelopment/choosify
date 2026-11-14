@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api, type Genre } from "@/lib/api";
+import { Chip } from "@/components/Chip";
 
 const EMOJI: Record<number, string> = {
   28: "💥", 12: "🧭", 16: "🎨", 35: "😂", 80: "🕵️", 99: "📚", 18: "🎭", 10751: "👨‍👩‍👧",
@@ -32,10 +33,10 @@ export function GenrePicker({ code, initial, onDone }: { code: string; initial: 
       <div className="flex flex-wrap gap-2">
         {genres === null && !error && Array.from({ length: 10 }, (_, i) => <span key={i} className="h-9 w-24 animate-pulse rounded-full bg-surface-2" />)}
         {genres?.map((g) => (
-          <button key={g.id} type="button" className="chip" aria-pressed={picked.includes(g.id)} onClick={() => toggle(g.id)}>
+          <Chip key={g.id} pressed={picked.includes(g.id)} onToggle={() => toggle(g.id)}>
             {EMOJI[g.id] ? `${EMOJI[g.id]} ` : ""}
             {g.name}
-          </button>
+          </Chip>
         ))}
       </div>
       {error && <p className="text-sm text-no">{error}</p>}

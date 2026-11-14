@@ -1,4 +1,5 @@
 "use client";
+import { AnimatePresence, motion } from "motion/react";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
@@ -56,15 +57,32 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
             <span className="text-muted">{ready} bereit</span>
           </div>
           <ul className="flex flex-col">
+            <AnimatePresence initial={false}>
             {state.participants.map((p) => (
-              <li key={p.name} className="flex items-center justify-between border-b border-line/70 py-2.5 text-lg">
+              <motion.li
+                layout
+                key={p.name}
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                className="flex items-center justify-between border-b border-line/70 py-2.5 text-lg"
+              >
                 <span>
                   {p.name}
                   {p.isHost && <span className="ml-2 text-sm text-accent">Host</span>}
                 </span>
-                <span className={p.genresDone ? "text-yes" : "text-muted"}>{p.genresDone ? "bereit" : "wählt noch"}</span>
-              </li>
+                <motion.span
+                  key={p.genresDone ? "ready" : "wait"}
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                  className={p.genresDone ? "text-yes" : "text-muted"}
+                >
+                  {p.genresDone ? "bereit" : "wählt noch"}
+                </motion.span>
+              </motion.li>
             ))}
+            </AnimatePresence>
           </ul>
           {isHost ? (
             <>
