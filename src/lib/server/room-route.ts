@@ -1,7 +1,7 @@
 import "server-only";
 import type { NextRequest } from "next/server";
 import type { z } from "zod";
-import { checkSameOrigin, limited, parseBody } from "./guard";
+import { checkSameOrigin, limited, limitedShared, parseBody } from "./guard";
 import { handle, jsonError } from "./http";
 import { currentParticipant, loadRoom, type Participant, type Room } from "./session";
 
@@ -16,14 +16,18 @@ export function roomAction<T>(
   schema: z.ZodType<T>,
   fn: (a: { room: Room; me: Participant; data: T }) => Promise<Response>,
   perMinute = 30,
+  shared = false,
 ) {
   return async (req: NextRequest, ctx: Ctx) => {
-    const blocked = checkSameOrigin(req) ?? limited(req, name, perMinute);
+    const { code } = await ctx.params;
+    const blocked =
+      checkSameOrigin(req) ??
+      (shared ? await limitedShared(req, name, perMinute) : limited(req, name, perMinute, perMinute, code));
     if (blocked) return blocked;
     const body = await parseBody(req, schema);
     if ("error" in body) return body.error;
     return handle(async () => {
-      const room = await loadRoom((await ctx.params).code);
+      const room = await loadRoom(code);
       if (!room) return jsonError(404, "Runde nicht gefunden");
       const me = await currentParticipant(room);
       if (!me) return jsonError(401, "Du bist dieser Runde nicht beigetreten");

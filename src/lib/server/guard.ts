@@ -1,6 +1,7 @@
 import "server-only";
 import type { NextRequest } from "next/server";
 import type { z } from "zod";
+import { db } from "./db";
 import { jsonError } from "./http";
 
 /**
@@ -75,8 +76,37 @@ export function rateLimit(key: string, perMinute: number, burst = perMinute): bo
   return true;
 }
 
-export function limited(req: NextRequest, name: string, perMinute: number, burst?: number) {
-  return rateLimit(`${name}:${clientIp(req)}`, perMinute, burst)
+/**
+ * Wer zählt fürs Limit? Beigetretene Teilnehmer einzeln (per Cookie), sonst die IP.
+ * Wichtig, weil eine Gruppe im selben WLAN oft dieselbe öffentliche IP teilt.
+ */
+export function limitKey(req: NextRequest, code?: string): string {
+  const c = code ? req.cookies.get(`fa_p_${code}`)?.value : undefined;
+  return c ? `p:${c.slice(0, 22)}` : `ip:${clientIp(req)}`;
+}
+
+export function limited(req: NextRequest, name: string, perMinute: number, burst?: number, code?: string) {
+  return rateLimit(`${name}:${limitKey(req, code)}`, perMinute, burst)
     ? null
     : jsonError(429, "Zu viele Anfragen, bitte kurz warten");
+}
+
+/**
+ * Rate Limit über alle Server-Instanzen (Postgres). Für Endpunkte, bei denen
+ * Missbrauch weh tut: Runde erstellen, beitreten (Code-Raten), TMDB-Suche, Abspann.
+ * Vorher greift zusätzlich das schnelle In-Memory-Limit.
+ */
+export async function limitedShared(req: NextRequest, name: string, perMinute: number, burst = perMinute) {
+  const local = limited(req, name, perMinute, burst);
+  if (local) return local;
+  const { data, error } = await db().rpc("rate_hit", {
+    p_key: `${name}:${clientIp(req)}`.slice(0, 200),
+    p_per_minute: perMinute,
+    p_burst: burst,
+  });
+  if (error) {
+    console.error(error);
+    return null; // Limit-Speicher kaputt: lieber durchlassen als die App lahmlegen
+  }
+  return data === false ? jsonError(429, "Zu viele Anfragen, bitte kurz warten") : null;
 }
