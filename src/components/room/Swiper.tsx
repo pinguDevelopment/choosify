@@ -96,7 +96,7 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
 
       {queue.length > 0 ? (
         <>
-          <div className="relative h-[min(68vh,560px)]">
+          <div className="relative h-[min(60vh,540px)]">
             <AnimatePresence custom={lastChoice}>
               {queue
                 .slice(0, 3)
@@ -112,54 +112,23 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
                 .reverse()}
             </AnimatePresence>
           </div>
-          <div className="flex items-center justify-center gap-3 sm:gap-5">
-            <motion.button
-              whileTap={{ scale: 0.88, rotate: -40 }}
-              transition={SPRING}
-              className="btn h-12 w-12 rounded-full border-2 border-line p-0 text-xl text-muted"
-              aria-label="Rückgängig"
-              title="Rückgängig"
-              disabled={history.length === 0}
-              onClick={undo}
-            >
+          {/* Knopfleiste: Nein | Wäre ok | Ja, jeweils beschriftet. Rückgängig klein links daneben. */}
+          <div className="grid grid-cols-[3rem_1fr_1fr_1fr_3rem] items-start justify-items-center gap-1">
+            <VoteButton label="Zurück" ariaLabel="Rückgängig" size="sm" tone="muted" disabled={history.length === 0} onClick={undo} tap={{ scale: 0.88, rotate: -40 }}>
               ↺
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.86 }}
-              transition={SPRING}
-              className="btn h-[4.5rem] w-[4.5rem] rounded-full border-2 border-no p-0 text-3xl text-no hover:bg-no hover:text-accent-ink"
-              aria-label="Nein"
-              title="Nein"
-              onClick={() => cast(queue[0], "no")}
-            >
+            </VoteButton>
+            <VoteButton label="Nein" size="lg" tone="no" onClick={() => cast(queue[0], "no")}>
               ✕
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.86, y: -4 }}
-              transition={SPRING}
-              className="btn h-14 w-14 rounded-full border-2 border-accent p-0 font-display text-xl font-extrabold uppercase text-accent hover:bg-accent hover:text-accent-ink"
-              aria-label="Wäre ok"
-              title="Wäre ok"
-              onClick={() => cast(queue[0], "maybe")}
-            >
-              ok
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.86 }}
-              transition={SPRING}
-              className="btn h-[4.5rem] w-[4.5rem] rounded-full border-2 border-yes p-0 text-3xl text-yes hover:bg-yes hover:text-accent-ink"
-              aria-label="Ja"
-              title="Ja"
-              onClick={() => cast(queue[0], "yes")}
-            >
+            </VoteButton>
+            <VoteButton label="Wäre ok" size="md" tone="accent" onClick={() => cast(queue[0], "maybe")} tap={{ scale: 0.86, y: -4 }}>
+              <span className="font-display text-xl font-extrabold uppercase">ok</span>
+            </VoteButton>
+            <VoteButton label="Ja" size="lg" tone="yes" onClick={() => cast(queue[0], "yes")}>
               ♥
-            </motion.button>
-            <span className="w-12" aria-hidden />
+            </VoteButton>
+            <span aria-hidden />
           </div>
-          <p className="text-center text-sm text-muted sm:hidden">Nach oben wischen heißt „Wäre ok“.</p>
+          <p className="text-center text-sm text-muted sm:hidden">Wischen: ← Nein · ↑ Wäre ok · → Ja</p>
           <p className="hidden text-center text-sm text-muted sm:block">Am Laptop: ← Nein, ↑ Wäre ok, → Ja. Rücktaste nimmt zurück.</p>
         </>
       ) : (
@@ -358,3 +327,52 @@ function SwipeCard({
 }
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
+
+const TONES = {
+  no: "border-no text-no hover:bg-no hover:text-accent-ink",
+  yes: "border-yes text-yes hover:bg-yes hover:text-accent-ink",
+  accent: "border-accent text-accent hover:bg-accent hover:text-accent-ink",
+  muted: "border-line text-muted",
+} as const;
+const SIZES = { sm: "h-12 w-12 text-xl mt-3", md: "h-14 w-14 text-xl mt-2", lg: "h-[4.5rem] w-[4.5rem] text-3xl" } as const;
+
+/** Runder Abstimmknopf mit kleiner Beschriftung darunter (das Symbol allein war nicht eindeutig). */
+function VoteButton({
+  label,
+  ariaLabel,
+  size,
+  tone,
+  disabled,
+  onClick,
+  tap = { scale: 0.86 },
+  children,
+}: {
+  label: string;
+  ariaLabel?: string;
+  size: keyof typeof SIZES;
+  tone: keyof typeof TONES;
+  disabled?: boolean;
+  onClick: () => void;
+  tap?: Record<string, number>;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <motion.button
+        whileHover={disabled ? undefined : { scale: 1.06 }}
+        whileTap={tap}
+        transition={SPRING}
+        className={`btn rounded-full border-2 bg-surface/60 p-0 shadow-[0_6px_18px_rgb(0_0_0/0.35)] backdrop-blur ${SIZES[size]} ${TONES[tone]}`}
+        aria-label={ariaLabel ?? label}
+        title={ariaLabel ?? label}
+        disabled={disabled}
+        onClick={onClick}
+      >
+        {children}
+      </motion.button>
+      <span aria-hidden className={`text-xs font-semibold tracking-wide uppercase ${disabled ? "text-line" : tone === "muted" ? "text-muted" : TONES[tone].split(" ")[1]}`}>
+        {label}
+      </span>
+    </div>
+  );
+}
