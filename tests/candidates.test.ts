@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { discoverParams, franchiseKey, genreDemand, personalOrder, pickCandidates, releaseYear } from "../src/lib/candidates.ts";
+import { discoverParams, featuredRank, franchiseKey, genreDemand, mixBuckets, personalOrder, pickCandidates, randomPage, releaseYear, streamableOn } from "../src/lib/candidates.ts";
 
 test("discoverParams verknüpft Anbieter und Genres mit ODER", () => {
   const p = discoverParams({ region: "DE", providerIds: [8, 9], genreIds: [28, 35], page: 2 });
@@ -84,4 +84,52 @@ test("personalOrder ist pro Person stabil und unterscheidet sich zwischen Person
 test("personalOrder kommt mit nur einer Reihe klar", () => {
   assert.equal(personalOrder(lotr, "x").length, 3);
   assert.deepEqual(personalOrder([], "x"), []);
+});
+
+test("discoverParams: keine Kinofilme, nur Abo/kostenlos/Werbung", () => {
+  const p = discoverParams({ region: "DE", providerIds: [8], genreIds: [], page: 1, today: new Date("2026-11-14T12:00:00Z") });
+  assert.equal(p.get("primary_release_date.lte"), "2026-09-15"); // 60 Tage vorher
+  assert.equal(p.get("with_watch_monetization_types"), "flatrate|free|ads");
+});
+
+test("discoverParams: Töpfe für mehr als Blockbuster", () => {
+  const today = new Date("2026-11-14T12:00:00Z");
+  const q = (bucket: "popular" | "acclaimed" | "classic" | "gem") =>
+    discoverParams({ region: "DE", providerIds: [8], genreIds: [], page: 1, bucket, today });
+  assert.equal(q("popular").get("sort_by"), "popularity.desc");
+  assert.equal(q("acclaimed").get("sort_by"), "vote_average.desc");
+  assert.equal(q("classic").get("primary_release_date.lte"), "2005-12-31");
+  assert.equal(q("gem").get("vote_count.lte"), "1500");
+  assert.equal(q("gem").get("vote_average.gte"), "6.8");
+});
+
+test("randomPage bleibt innerhalb der vorhandenen Seiten", () => {
+  assert.equal(randomPage("acclaimed", 1, () => 0.99), 1);
+  assert.equal(randomPage("acclaimed", 0, () => 0.5), 1);
+  assert.equal(randomPage("acclaimed", 400, () => 0.99), 12);
+  assert.equal(randomPage("popular", 400, () => 0), 1);
+});
+
+test("streamableOn: nur Abo, kostenlos oder Werbung bei gewählten Diensten zählt", () => {
+  assert.deepEqual(streamableOn({ flatrate: [{ provider_id: 8 }, { provider_id: 30 }] }, [8, 9]), [8]);
+  assert.deepEqual(streamableOn({ ads: [{ provider_id: 9 }] }, [8, 9]), [9]);
+  assert.deepEqual(streamableOn({ flatrate: [{ provider_id: 30 }] }, [8, 9]), []);
+  assert.deepEqual(streamableOn({ rent: [{ provider_id: 8 }] } as never, [8]), [], "Leihen zählt nicht");
+  assert.deepEqual(streamableOn(undefined, [8]), [], "keine Daten = nicht verfügbar");
+});
+
+test("mixBuckets nimmt abwechselnd aus jedem Topf und überspringt Doppelte", () => {
+  const m = (id: number) => ({ id });
+  const out = mixBuckets([[m(1), m(2), m(3)], [m(10), m(1)], [m(20)]], 5).map((x) => x.id);
+  assert.deepEqual(out, [1, 10, 20, 2, 3]);
+});
+
+test("featuredRank erkennt bekannte Dienste, aber keine Varianten", () => {
+  assert.equal(featuredRank("Netflix"), 0);
+  assert.ok(featuredRank("Disney Plus") > 0);
+  assert.ok(featuredRank("RTL+") > 0);
+  assert.ok(featuredRank("Apple TV", 350) > 0, "Apple TV+ unter neuem Namen");
+  assert.equal(featuredRank("Apple TV", 2), -1, "Apple-Store zum Leihen ist kein Abo");
+  assert.equal(featuredRank("Netflix Standard with Ads"), -1);
+  assert.equal(featuredRank("MUBI Amazon Channel"), -1);
 });
