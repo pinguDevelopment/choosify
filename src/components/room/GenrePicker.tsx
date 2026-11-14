@@ -2,6 +2,12 @@
 import { useEffect, useState } from "react";
 import { api, type Genre } from "@/lib/api";
 
+const EMOJI: Record<number, string> = {
+  28: "💥", 12: "🧭", 16: "🎨", 35: "😂", 80: "🕵️", 99: "📚", 18: "🎭", 10751: "👨‍👩‍👧",
+  14: "🧙", 36: "🏛️", 27: "👻", 10402: "🎵", 9648: "🔍", 10749: "💘", 878: "🚀",
+  10770: "📺", 53: "😱", 10752: "🪖", 37: "🤠",
+};
+
 export function GenrePicker({ code, initial, onDone }: { code: string; initial: number[]; onDone: () => void }) {
   const [genres, setGenres] = useState<Genre[] | null>(null);
   const [picked, setPicked] = useState<number[]>(initial);
@@ -24,9 +30,10 @@ export function GenrePicker({ code, initial, onDone }: { code: string; initial: 
         <p className="mt-1 text-sm text-muted">Wähle so viele Genres, wie du willst. Gar keins heißt: mir egal.</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        {genres === null && !error && <p className="text-sm text-muted">Lade Genres …</p>}
+        {genres === null && !error && Array.from({ length: 10 }, (_, i) => <span key={i} className="h-9 w-24 animate-pulse rounded-full bg-surface-2" />)}
         {genres?.map((g) => (
           <button key={g.id} type="button" className="chip" aria-pressed={picked.includes(g.id)} onClick={() => toggle(g.id)}>
+            {EMOJI[g.id] ? `${EMOJI[g.id]} ` : ""}
             {g.name}
           </button>
         ))}

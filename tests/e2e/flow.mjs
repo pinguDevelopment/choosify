@@ -76,6 +76,12 @@ await guests[0].mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2, 
 await guests[0].mouse.up();
 await guests[0].getByText(/^1\/\d+$/).waitFor();
 log("Drag-Swipe funktioniert");
+await guests[0].getByRole("button", { name: "Rückgängig" }).click();
+await guests[0].getByText(/^0\/\d+$/).waitFor();
+log("Rückgängig funktioniert");
+await guests[0].keyboard.press("ArrowRight");
+await guests[0].getByText(/^1\/\d+$/).waitFor();
+log("Tastatur-Swipe funktioniert");
 
 const total = await swipeAll(host, [0, 1, 2]);
 await swipeAll(guests[0], [2]); // erster Film schon per Drag = Ja

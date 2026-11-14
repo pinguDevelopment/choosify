@@ -18,7 +18,8 @@ export const createRoomSchema = z.object({
 
 export const joinSchema = z.object({ name: nameSchema });
 export const genresSchema = z.object({ genreIds: z.array(z.number().int().positive()).max(20) });
-export const voteSchema = z.object({ tmdbId: tmdbIdSchema, liked: z.boolean() });
+// liked = null nimmt eine Stimme zurück (Rückgängig-Knopf).
+export const voteSchema = z.object({ tmdbId: tmdbIdSchema, liked: z.boolean().nullable() });
 export const finishSchema = z.object({
   winnerTmdbId: tmdbIdSchema.nullable().default(null),
   addToAbspann: z.boolean().default(false),
