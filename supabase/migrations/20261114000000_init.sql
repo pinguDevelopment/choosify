@@ -1,0 +1,145 @@
+-- Film-Aussucher: Grundschema
+--
+-- Sicherheitsmodell:
+--   * Browser greifen NIE direkt auf die Datenbank zu. Alle Lese- und Schreibzugriffe
+--     laufen über die Next.js-API mit dem Service-Role-Key (nur auf dem Server).
+--   * RLS ist auf allen Tabellen aktiv, ohne Policies für anon/authenticated.
+--     Selbst wenn der öffentliche anon-Key bekannt wird, ist nichts lesbar oder schreibbar.
+--   * Geheimnisse (Host-, Teilnehmer- und Crew-Tokens) werden nur als SHA-256-Hash gespeichert.
+
+create extension if not exists pgcrypto;
+
+-- Eine Crew ist die feste Gruppe (z.B. "Filmabend Freitag"), der die Abspann-Liste gehört.
+create table crews (
+  id               uuid primary key default gen_random_uuid(),
+  name             text not null check (char_length(name) between 1 and 60),
+  secret_hash      text not null,
+  created_at       timestamptz not null default now()
+);
+
+-- "Abspann": Filme, die die Crew schon gesehen hat. Sie werden nicht mehr vorgeschlagen.
+create table abspann (
+  crew_id          uuid not null references crews(id) on delete cascade,
+  tmdb_id          integer not null check (tmdb_id > 0),
+  title            text not null check (char_length(title) <= 300),
+  poster_path      text check (poster_path is null or poster_path ~ '^/[A-Za-z0-9._-]+$'),
+  release_year     smallint,
+  watched_at       timestamptz not null default now(),
+  primary key (crew_id, tmdb_id)
+);
+
+create type room_status as enum ('lobby', 'voting', 'done');
+
+-- Ein Raum ist eine einzelne Abstimmungsrunde.
+create table rooms (
+  id               uuid primary key default gen_random_uuid(),
+  code             text not null unique check (code ~ '^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{10}$'),
+  crew_id          uuid references crews(id) on delete set null,
+  region           text not null default 'DE' check (region ~ '^[A-Z]{2}$'),
+  provider_ids     integer[] not null default '{}' check (cardinality(provider_ids) <= 30),
+  status           room_status not null default 'lobby',
+  winner_tmdb_id   integer,
+  created_at       timestamptz not null default now(),
+  expires_at       timestamptz not null default now() + interval '24 hours'
+);
+
+create table participants (
+  id               uuid primary key default gen_random_uuid(),
+  room_id          uuid not null references rooms(id) on delete cascade,
+  name             text not null check (char_length(name) between 1 and 30),
+  token_hash       text not null unique,
+  is_host          boolean not null default false,
+  genre_ids        integer[] not null default '{}' check (cardinality(genre_ids) <= 20),
+  genres_done      boolean not null default false,
+  joined_at        timestamptz not null default now()
+);
+create index participants_room_idx on participants(room_id);
+-- Genau ein Host pro Raum.
+create unique index participants_one_host on participants(room_id) where is_host;
+-- Namen pro Raum eindeutig (ohne Groß-/Kleinschreibung).
+create unique index participants_unique_name on participants(room_id, lower(name));
+
+-- Kandidaten, die in diesem Raum geswipt werden (aus TMDB zwischengespeichert).
+create table room_movies (
+  room_id          uuid not null references rooms(id) on delete cascade,
+  tmdb_id          integer not null check (tmdb_id > 0),
+  position         integer not null,
+  title            text not null check (char_length(title) <= 300),
+  overview         text check (char_length(overview) <= 2000),
+  poster_path      text check (poster_path is null or poster_path ~ '^/[A-Za-z0-9._-]+$'),
+  release_year     smallint,
+  vote_average     numeric(3,1),
+  runtime_min      smallint,
+  genre_ids        integer[] not null default '{}',
+  primary key (room_id, tmdb_id)
+);
+
+create table votes (
+  room_id          uuid not null,
+  participant_id   uuid not null references participants(id) on delete cascade,
+  tmdb_id          integer not null,
+  liked            boolean not null,
+  voted_at         timestamptz not null default now(),
+  primary key (participant_id, tmdb_id),
+  foreign key (room_id, tmdb_id) references room_movies(room_id, tmdb_id) on delete cascade
+);
+create index votes_room_idx on votes(room_id);
+
+-- Rangliste: zuerst Filme, die ALLE wollen, dann nach Anzahl Zusagen, dann TMDB-Bewertung.
+create or replace function room_ranking(p_room_id uuid)
+returns table (
+  tmdb_id integer,
+  title text,
+  poster_path text,
+  release_year smallint,
+  vote_average numeric,
+  likes integer,
+  dislikes integer,
+  participants integer,
+  unanimous boolean
+)
+language sql stable
+set search_path = public
+as $$
+  with p as (
+    select count(*)::int as n from participants where room_id = p_room_id
+  )
+  select m.tmdb_id, m.title, m.poster_path, m.release_year, m.vote_average,
+         coalesce(sum(case when v.liked then 1 else 0 end), 0)::int as likes,
+         coalesce(sum(case when v.liked then 0 else 1 end), 0)::int as dislikes,
+         p.n as participants,
+         (p.n > 0 and coalesce(sum(case when v.liked then 1 else 0 end), 0) = p.n) as unanimous
+  from room_movies m
+  cross join p
+  left join votes v on v.room_id = m.room_id and v.tmdb_id = m.tmdb_id
+  where m.room_id = p_room_id
+  group by m.tmdb_id, m.title, m.poster_path, m.release_year, m.vote_average, p.n
+  having coalesce(sum(case when v.liked then 1 else 0 end), 0) > 0
+  order by unanimous desc, likes desc, dislikes asc, m.vote_average desc nulls last
+$$;
+
+-- Abgelaufene Räume aufräumen (per Cron oder manuell aufrufbar).
+create or replace function cleanup_expired_rooms()
+returns integer
+language sql
+set search_path = public
+as $$
+  with d as (delete from rooms where expires_at < now() returning 1)
+  select count(*)::int from d
+$$;
+
+-- RLS: alles zu für Client-Rollen. Nur der Service-Role-Key (Server) kommt durch.
+alter table crews        enable row level security;
+alter table abspann      enable row level security;
+alter table rooms        enable row level security;
+alter table participants enable row level security;
+alter table room_movies  enable row level security;
+alter table votes        enable row level security;
+
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    revoke all on all tables in schema public from anon, authenticated;
+    revoke execute on all functions in schema public from anon, authenticated, public;
+  end if;
+end $$;
