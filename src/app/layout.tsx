@@ -1,30 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Big_Shoulders, Big_Shoulders_Inline, Figtree } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Big Shoulders: schmale Groteske nach Chicagoer Kino- und Straßenschildern.
+const display = Big_Shoulders({ variable: "--font-display", subsets: ["latin"], weight: ["600", "800"] });
+// Inline-Schnitt nur für die Leuchtreklame (Logo und Gewinner).
+const marquee = Big_Shoulders_Inline({ variable: "--font-marquee", subsets: ["latin"], weight: ["800"] });
+const body = Figtree({ variable: "--font-body", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Film Aussucher",
+  title: "Choosify",
   description: "Gemeinsam schnell einen Film finden",
 };
 
-export const viewport: Viewport = { themeColor: "#0d0b10", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#2A0A14", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="de"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="de" className={`${display.variable} ${marquee.variable} ${body.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

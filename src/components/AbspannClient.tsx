@@ -32,9 +32,9 @@ export function AbspannClient() {
   if (!data) return <p className="text-muted">{error ?? "Lade …"}</p>;
   if (!data.crew) {
     return (
-      <div className="card text-center">
-        <p>Auf diesem Gerät gibt es noch keine Crew.</p>
-        <p className="mt-1 text-sm text-muted">Die Crew entsteht, wenn du als Host deine erste Runde startest.</p>
+      <div className="card">
+        <h2 className="text-3xl">Noch keine Crew</h2>
+        <p className="mt-2 text-muted">Deine Crew entsteht, sobald du als Host die erste Runde startest. Danach landen eure Filme hier.</p>
         <Link href="/" className="btn-primary mt-4">
           Runde starten
         </Link>
@@ -46,15 +46,15 @@ export function AbspannClient() {
 
   return (
     <>
-      <section className="card flex flex-col gap-3">
-        <h2 className="font-semibold">Film hinzufügen</h2>
+      <section className="flex flex-col gap-3">
+        <h2 className="text-2xl">Film eintragen</h2>
         <input className="input" placeholder="Titel suchen …" value={query} onChange={(e) => setQuery(e.target.value)} />
         {query.trim().length >= 2 && hits.length > 0 && (
           <ul className="flex flex-col gap-2">
             {hits.map((h) => (
               <li key={h.tmdbId}>
                 <button
-                  className="flex w-full items-center gap-3 rounded-xl bg-surface-2 p-2 text-left disabled:opacity-50"
+                  className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-surface disabled:opacity-50"
                   disabled={known.has(h.tmdbId)}
                   onClick={async () => {
                     try {
@@ -71,7 +71,7 @@ export function AbspannClient() {
                   <span className="flex-1">
                     {h.title} <span className="text-muted">{h.year ?? ""}</span>
                   </span>
-                  <span className="pr-2 text-sm text-accent">{known.has(h.tmdbId) ? "✓" : "+"}</span>
+                  <span className="pr-2 text-accent">{known.has(h.tmdbId) ? "schon drin" : "Eintragen"}</span>
                 </button>
               </li>
             ))}
@@ -79,14 +79,14 @@ export function AbspannClient() {
         )}
       </section>
 
-      <section className="card flex flex-col gap-3">
-        <h2 className="font-semibold">
-          {data.crew.name} <span className="text-muted">· {data.movies.length} Filme</span>
+      <section className="flex flex-col gap-2">
+        <h2 className="text-2xl">
+          {data.crew.name} <span className="text-muted">({data.movies.length})</span>
         </h2>
-        {data.movies.length === 0 && <p className="text-sm text-muted">Noch leer.</p>}
-        <ul className="flex flex-col gap-2">
+        {data.movies.length === 0 && <p className="text-muted">Noch leer. Nach eurem ersten Filmabend steht hier der Gewinner.</p>}
+        <ul className="flex flex-col">
           {data.movies.map((m) => (
-            <li key={m.tmdbId} className="flex items-center gap-3 rounded-xl bg-surface-2 p-2 pr-3">
+            <li key={m.tmdbId} className="flex items-center gap-3 border-b border-line/70 py-2 last:border-0">
               <Thumb src={m.poster} />
               <span className="min-w-0 flex-1 truncate">
                 {m.title} <span className="text-muted">{m.year ?? ""}</span>
@@ -119,6 +119,6 @@ function Thumb({ src }: { src: string | null }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt="" className="h-12 w-8 rounded object-cover" />
   ) : (
-    <div className="grid h-12 w-8 place-items-center rounded bg-surface text-sm">🎞️</div>
+    <div className="h-12 w-8 rounded bg-surface-2" />
   );
 }
