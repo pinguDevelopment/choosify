@@ -8,8 +8,14 @@ const BASE = "https://api.themoviedb.org/3";
 
 async function tmdb<T>(path: string, params: URLSearchParams, schema: z.ZodType<T>, revalidate = 3600): Promise<T> {
   if (tmdbMock) return schema.parse(mockTmdb(path, params));
-  const res = await fetch(`${BASE}${path}?${params}`, {
-    headers: { Authorization: `Bearer ${env().TMDB_READ_TOKEN}`, Accept: "application/json" },
+  // Unterstützt beide TMDB-Schlüssel: v3 "API Key" (32 Hex-Zeichen, als Query-Parameter)
+  // und v4 "Read Access Token" (lang, als Bearer-Header).
+  const key = env().TMDB_READ_TOKEN!;
+  const isV3 = /^[0-9a-f]{32}$/i.test(key);
+  const query = new URLSearchParams(params);
+  if (isV3) query.set("api_key", key);
+  const res = await fetch(`${BASE}${path}?${query}`, {
+    headers: isV3 ? { Accept: "application/json" } : { Authorization: `Bearer ${key}`, Accept: "application/json" },
     next: { revalidate },
     signal: AbortSignal.timeout(8000),
   });

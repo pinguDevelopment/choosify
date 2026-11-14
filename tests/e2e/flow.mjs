@@ -11,6 +11,11 @@ const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 };
 const host = await (await browser.newContext(phone)).newPage();
 const guests = [await (await browser.newContext(phone)).newPage(), await (await browser.newContext(phone)).newPage()];
 const log = (...a) => console.log("✓", ...a);
+// CSP-Verstöße sammeln: jede blockierte Ressource lässt den Test scheitern.
+const cspErrors = [];
+for (const pg of [host, ...guests]) {
+  pg.on("console", (m) => /Content Security Policy|Refused to/.test(m.text()) && cspErrors.push(m.text()));
+}
 
 // Host erstellt Runde mit Netflix
 await host.goto(BASE);
@@ -146,6 +151,18 @@ assert.deepEqual(leak.participants, [], "Nicht-Mitglieder sehen keine Teilnehmer
 const cookies = await host.context().cookies();
 assert.ok(cookies.filter((c) => c.name.startsWith("fa_")).every((c) => c.httpOnly), "Cookies sind httpOnly");
 log("Sicherheitschecks bestanden");
+
+assert.deepEqual(cspErrors, [], "Keine CSP-Verstöße");
+log("Keine CSP-Verstöße");
+
+// Rate Limit beim Beitreten (gegen Code-Raten)
+let limitedHit = false;
+for (let i = 0; i < 60; i++) {
+  const rr = await api.post(`${BASE}/api/rooms/AAAAAAAAAA/join`, { headers: { Origin: BASE }, data: { name: `x${i}` } });
+  if (rr.status() === 429) { limitedHit = true; break; }
+}
+assert.ok(limitedHit, "Beitreten wird nach vielen Versuchen gebremst");
+log("Rate Limit greift");
 
 await browser.close();
 console.log("\nAlles grün.");

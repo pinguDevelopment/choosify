@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { checkSameOrigin, limited, parseBody } from "@/lib/server/guard";
+import { checkSameOrigin, limited, limitedShared, parseBody } from "@/lib/server/guard";
 import { handle, jsonError } from "@/lib/server/http";
 import { addAbspann, listAbspann, removeAbspann } from "@/lib/server/rooms";
 import { abspannSchema } from "@/lib/server/schemas";
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const blocked = checkSameOrigin(req) ?? limited(req, "abspann-write", 30);
+  const blocked = checkSameOrigin(req) ?? (await limitedShared(req, "abspann-write", 30));
   if (blocked) return blocked;
   const body = await parseBody(req, abspannSchema);
   if ("error" in body) return body.error;
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const blocked = checkSameOrigin(req) ?? limited(req, "abspann-write", 30);
+  const blocked = checkSameOrigin(req) ?? (await limitedShared(req, "abspann-write", 30));
   if (blocked) return blocked;
   const body = await parseBody(req, abspannSchema);
   if ("error" in body) return body.error;
