@@ -61,14 +61,17 @@ await host.getByRole("button", { name: "Swipen starten" }).click();
 await host.getByRole("button", { name: "Ja" }).waitFor();
 log("Swipen gestartet");
 
-// Alle stimmen ab: jeder sagt Ja zum 1. und 3. Film, Lena auch zum 2.
-async function swipeAll(page, yesAt) {
-  const [done, total] = (await page.getByText(/^\d+\/\d+$/).first().textContent()).split("/").map(Number);
-  for (let i = done; i < total; i++) {
-    await page.getByRole("button", { name: yesAt.includes(i) ? "Ja" : "Nein" }).click({ timeout: 5000 }).catch(async (e) => { await page.screenshot({ path: "/var/tmp/fa-fail.png" }); console.log("fail at", i, "of", total); throw e; });
+// Alle stimmen ab. Jede Person hat eine eigene Reihenfolge, deshalb wird pro Film entschieden:
+// plan = { tmdbId: "Ja" | "Wäre ok" }, alles andere "Nein".
+const roomState = async (page) => (await page.request.get(`${BASE}/api/rooms/${code}`)).json();
+async function swipeAll(page, plan) {
+  const st = await roomState(page);
+  const open = st.movies.filter((m) => st.myVotes[m.tmdbId] == null);
+  for (const m of open) {
+    await page.getByRole("button", { name: plan[m.tmdbId] ?? "Nein", exact: true }).click({ timeout: 5000 }).catch(async (e) => { await page.screenshot({ path: "/var/tmp/fa-fail.png" }); console.log("fail at", m.title); throw e; });
   }
   await page.getByText("Du bist durch!").waitFor();
-  return total;
+  return st.movies.length;
 }
 for (const g of guests) await g.getByRole("button", { name: "Ja" }).waitFor({ timeout: 8000 });
 if (shots) await guests[0].screenshot({ path: `${shots}/4-swipe.png` });
@@ -87,24 +90,67 @@ log("Rückgängig funktioniert");
 await guests[0].keyboard.press("ArrowRight");
 await guests[0].getByText(/^1\/\d+$/).waitFor();
 log("Tastatur-Swipe funktioniert");
+// Wisch nach oben = Wäre ok
+await guests[0].waitForTimeout(700); // Rausflug-Animation der vorigen Karte abwarten
+const card2 = guests[0].locator("article").last();
+const box2 = await card2.boundingBox();
+await guests[0].mouse.move(box2.x + box2.width / 2, box2.y + box2.height / 2);
+await guests[0].mouse.down();
+await guests[0].mouse.move(box2.x + box2.width / 2 + 10, box2.y + box2.height / 2 - 220, { steps: 8 });
+await guests[0].mouse.up();
+await guests[0].getByText(/^2\/\d+$/).waitFor();
+const g0 = await roomState(guests[0]);
+assert.equal(g0.myVotes[g0.movies[1].tmdbId], "maybe", "Wisch nach oben speichert Wäre ok");
+await guests[0].keyboard.press("Backspace");
+await guests[0].getByText(/^1\/\d+$/).waitFor();
+log("Wisch nach oben = Wäre ok funktioniert");
 
-const total = await swipeAll(host, [0, 1, 2]);
-await swipeAll(guests[0], [2]); // erster Film schon per Drag = Ja
-await swipeAll(guests[1], [0, 2]);
+// Reihenfolge ist pro Person gemischt
+const hostState = await roomState(host);
+assert.notDeepEqual(hostState.movies.map((m) => m.tmdbId), g0.movies.map((m) => m.tmdbId), "eigene Reihenfolge pro Person");
+assert.deepEqual((await roomState(host)).movies.map((m) => m.tmdbId), hostState.movies.map((m) => m.tmdbId), "Reihenfolge bleibt stabil");
+log("Jede Person hat eine eigene, stabile Reihenfolge");
+
+// a und c wollen alle (alle ♥, also Gleichstand -> Stichwahl), b ist für alle ok (alle dabei).
+// Lenas erster Film (per Tastatur schon Ja) bleibt außen vor, damit der Gleichstand sicher genau a und c betrifft.
+const [a, b, c] = hostState.movies.map((m) => m.tmdbId).filter((id) => id !== g0.movies[0].tmdbId).sort((x, y) => x - y);
+const total = await swipeAll(host, { [a]: "Ja", [b]: "Ja", [c]: "Ja" });
+await swipeAll(guests[0], { [a]: "Ja", [b]: "Wäre ok", [c]: "Ja" });
+await swipeAll(guests[1], { [a]: "Ja", [b]: "Wäre ok", [c]: "Ja" });
 log(`Alle haben ${total} Filme bewertet`);
 
 await host.getByText("alle ♥").first().waitFor({ timeout: 8000 });
+await host.getByText("alle dabei").first().waitFor();
+const rank = (await roomState(host)).ranking;
+assert.deepEqual(rank.filter((r) => r.unanimous).map((r) => r.tmdbId).sort((x, y) => x - y), [a, c]);
+assert.ok(rank.find((r) => r.tmdbId === b).acceptable, "Ja + Wäre ok ohne Nein = alle dabei");
+log("Rangliste: alle ♥ vor alle dabei");
 if (shots) await host.screenshot({ path: `${shots}/5-zwischenstand.png`, fullPage: true });
+
+// Gleichstand -> Stichwahl -> genau ein Gewinner
 const finishBtn = host.getByRole("button", { name: /Abstimmung beenden/ });
-const label = await finishBtn.textContent();
+assert.match(await finishBtn.textContent(), /Stichwahl \(2 Filme\)/);
 await finishBtn.click();
-await host.getByText("Heute läuft").waitFor();
+await host.getByRole("heading", { name: "Stichwahl" }).waitFor();
+await guests[1].getByRole("heading", { name: "Stichwahl" }).waitFor({ timeout: 8000 });
+const titleOf = (id) => hostState.movies.find((m) => m.tmdbId === id).title;
+let bad = await guests[0].request.post(`${BASE}/api/rooms/${code}/runoff`, { headers: { Origin: BASE }, data: { tmdbId: b } });
+assert.equal(bad.status(), 400, "Nur Filme aus der Stichwahl wählbar");
+await host.getByRole("button", { name: `${titleOf(c)} wählen` }).click();
+await host.getByText("1 von 3 haben gewählt").waitFor();
+await guests[0].getByRole("button", { name: `${titleOf(a)} wählen` }).click(); // erst a ...
+await guests[0].getByRole("button", { name: `${titleOf(c)} wählen` }).click(); // ... dann umentschieden
+await host.getByText("2 von 3 haben gewählt").waitFor({ timeout: 8000 });
+if (shots) await host.screenshot({ path: `${shots}/5b-stichwahl.png`, fullPage: true });
+await guests[1].getByRole("button", { name: `${titleOf(a)} wählen` }).click(); // letzte Stimme beendet automatisch
+await host.getByText("Heute läuft").waitFor({ timeout: 8000 });
 const winner = await host.locator("h1:visible").textContent();
-assert.ok(label.includes(winner), `Gewinner ${winner} passt zum Button ${label}`);
+assert.equal(winner, titleOf(c), "Stichwahl 2:1 für c");
+await host.getByText("In der Stichwahl gewonnen: 2 von 3 Stimmen.").waitFor();
 await guests[1].getByText("Heute läuft").waitFor({ timeout: 8000 });
 assert.equal(await guests[1].locator("h1:visible").textContent(), winner);
 if (shots) await guests[1].screenshot({ path: `${shots}/6-ergebnis.png`, fullPage: true });
-log("Gewinner bei allen gleich:", winner);
+log("Stichwahl entscheidet, Gewinner bei allen gleich:", winner);
 
 // Abspann: Gewinner wurde übernommen
 await host.goto(`${BASE}/abspann`);
@@ -132,7 +178,7 @@ log("Neue Runde schließt Abspann-Filme aus");
 
 // ---- Sicherheitschecks ------------------------------------------------------
 const api = guests[0].request;
-let r = await api.post(`${BASE}/api/rooms/${code2}/vote`, { headers: { Origin: BASE }, data: { tmdbId: s2.movies[0].tmdbId, liked: true } });
+let r = await api.post(`${BASE}/api/rooms/${code2}/vote`, { headers: { Origin: BASE }, data: { tmdbId: s2.movies[0].tmdbId, choice: "yes" } });
 assert.equal(r.status(), 401, "Fremde Runde: kein Abstimmen ohne Beitritt");
 r = await api.post(`${BASE}/api/rooms/${code}/start`, { headers: { Origin: BASE }, data: {} });
 assert.equal(r.status(), 403, "Gast darf nicht starten");

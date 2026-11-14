@@ -18,10 +18,11 @@ export const createRoomSchema = z.object({
 
 export const joinSchema = z.object({ name: nameSchema });
 export const genresSchema = z.object({ genreIds: z.array(z.number().int().positive()).max(20) });
-// liked = null nimmt eine Stimme zurück (Rückgängig-Knopf).
-export const voteSchema = z.object({ tmdbId: tmdbIdSchema, liked: z.boolean().nullable() });
+// choice = null nimmt eine Stimme zurück (Rückgängig-Knopf).
+export const voteSchema = z.object({ tmdbId: tmdbIdSchema, choice: z.enum(["yes", "maybe", "no"]).nullable() });
+// Den Gewinner bestimmt der Server aus der Rangliste (bei Gleichstand per Stichwahl).
 export const finishSchema = z.object({
-  winnerTmdbId: tmdbIdSchema.nullable().default(null),
   addToAbspann: z.boolean().default(false),
 });
+export const runoffSchema = z.object({ tmdbId: tmdbIdSchema });
 export const abspannSchema = z.object({ tmdbId: tmdbIdSchema });

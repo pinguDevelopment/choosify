@@ -2,36 +2,38 @@
 import { AnimatePresence, MotionConfig, motion, useMotionValue, useTransform, type PanInfo } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import type { Movie, RoomState } from "./types";
+import type { Choice, Movie, RoomState } from "./types";
 import { RankingList } from "./Results";
+import { tiedLeaders } from "@/lib/ranking";
 
 const THRESHOLD = 110; // px, ab hier zählt ein Wisch
 const FLICK = 650; // px/s, ein schneller Schubs reicht auch ohne weiten Weg
 const SPRING = { type: "spring", stiffness: 380, damping: 32, mass: 0.9 } as const;
+// Wohin eine Karte je Stimme rausfliegt: Ja nach rechts, Nein nach links, Wäre ok nach oben
+const FLY: Record<Choice, { x: number; y: number }> = { yes: { x: 1, y: 0 }, no: { x: -1, y: 0 }, maybe: { x: 0, y: -1 } };
 
 export function Swiper({ state, onChange }: { state: RoomState; onChange: () => void }) {
   // null = lokal zurückgenommen, bis der Server es bestätigt
-  const [local, setLocal] = useState<Record<number, boolean | null>>({});
+  const [local, setLocal] = useState<Record<number, Choice | null>>({});
   const [history, setHistory] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Richtung des letzten Wischs: steuert, wohin die Karte rausfliegt bzw. woher sie bei Rückgängig zurückkommt
-  const [lastDir, setLastDir] = useState<1 | -1>(1);
-  const [returning, setReturning] = useState<{ id: number; dir: 1 | -1 } | null>(null);
-  const dirs = useRef(new Map<number, 1 | -1>());
-  const voted = useMemo<Record<number, boolean | null>>(() => ({ ...state.myVotes, ...local }), [state.myVotes, local]);
+  // Letzte Stimme: steuert, wohin die Karte rausfliegt bzw. woher sie bei Rückgängig zurückkommt
+  const [lastChoice, setLastChoice] = useState<Choice>("yes");
+  const [returning, setReturning] = useState<{ id: number; choice: Choice } | null>(null);
+  const choices = useRef(new Map<number, Choice>());
+  const voted = useMemo<Record<number, Choice | null>>(() => ({ ...state.myVotes, ...local }), [state.myVotes, local]);
   const queue = state.movies.filter((m) => voted[m.tmdbId] == null);
   const done = state.movies.length - queue.length;
 
-  async function cast(m: Movie, liked: boolean) {
-    const dir = liked ? 1 : -1;
-    dirs.current.set(m.tmdbId, dir);
-    setLastDir(dir);
+  async function cast(m: Movie, choice: Choice) {
+    choices.current.set(m.tmdbId, choice);
+    setLastChoice(choice);
     setReturning(null);
-    setLocal((l) => ({ ...l, [m.tmdbId]: liked })); // sofort weiter, Server im Hintergrund
+    setLocal((l) => ({ ...l, [m.tmdbId]: choice })); // sofort weiter, Server im Hintergrund
     setHistory((h) => [...h, m.tmdbId]);
-    navigator.vibrate?.(liked ? [12, 40, 12] : 12);
+    navigator.vibrate?.(choice === "yes" ? [12, 40, 12] : choice === "maybe" ? 8 : 12);
     try {
-      await api(`/api/rooms/${state.code}/vote`, { body: { tmdbId: m.tmdbId, liked } });
+      await api(`/api/rooms/${state.code}/vote`, { body: { tmdbId: m.tmdbId, choice } });
     } catch (e) {
       setError((e as Error).message);
       setLocal((l) => {
@@ -46,17 +48,17 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
     const last = history.at(-1);
     if (last === undefined) return;
     setHistory((h) => h.slice(0, -1));
-    setReturning({ id: last, dir: dirs.current.get(last) ?? 1 });
+    setReturning({ id: last, choice: choices.current.get(last) ?? "yes" });
     setLocal((l) => ({ ...l, [last]: null }));
     try {
-      await api(`/api/rooms/${state.code}/vote`, { body: { tmdbId: last, liked: null } });
+      await api(`/api/rooms/${state.code}/vote`, { body: { tmdbId: last, choice: null } });
       onChange();
     } catch (e) {
       setError((e as Error).message);
     }
   }
 
-  // Tastatur am Laptop: ← Nein, → Ja, Backspace = Rückgängig
+  // Tastatur am Laptop: ← Nein, ↑ Wäre ok, → Ja, Backspace = Rückgängig
   const top = queue[0];
   const castRef = useRef(cast);
   const undoRef = useRef(undo);
@@ -67,8 +69,12 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
-      if (e.key === "ArrowRight" && top) castRef.current(top, true);
-      else if (e.key === "ArrowLeft" && top) castRef.current(top, false);
+      if (e.key === "ArrowRight" && top) castRef.current(top, "yes");
+      else if (e.key === "ArrowLeft" && top) castRef.current(top, "no");
+      else if (e.key === "ArrowUp" && top) {
+        e.preventDefault(); // sonst scrollt die Seite mit
+        castRef.current(top, "maybe");
+      }
       else if (e.key === "Backspace") undoRef.current();
     };
     window.addEventListener("keydown", onKey);
@@ -91,7 +97,7 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
       {queue.length > 0 ? (
         <>
           <div className="relative h-[min(68vh,560px)]">
-            <AnimatePresence custom={lastDir}>
+            <AnimatePresence custom={lastChoice}>
               {queue
                 .slice(0, 3)
                 .map((m, depth) => (
@@ -99,14 +105,14 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
                     key={m.tmdbId}
                     movie={m}
                     depth={depth}
-                    enterFrom={returning?.id === m.tmdbId ? returning.dir : 0}
-                    onVote={(liked) => cast(m, liked)}
+                    enterFrom={returning?.id === m.tmdbId ? returning.choice : null}
+                    onVote={(choice) => cast(m, choice)}
                   />
                 ))
                 .reverse()}
             </AnimatePresence>
           </div>
-          <div className="flex items-center justify-center gap-6">
+          <div className="flex items-center justify-center gap-3 sm:gap-5">
             <motion.button
               whileTap={{ scale: 0.88, rotate: -40 }}
               transition={SPRING}
@@ -124,9 +130,21 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
               transition={SPRING}
               className="btn h-[4.5rem] w-[4.5rem] rounded-full border-2 border-no p-0 text-3xl text-no hover:bg-no hover:text-accent-ink"
               aria-label="Nein"
-              onClick={() => cast(queue[0], false)}
+              title="Nein"
+              onClick={() => cast(queue[0], "no")}
             >
               ✕
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.86, y: -4 }}
+              transition={SPRING}
+              className="btn h-14 w-14 rounded-full border-2 border-accent p-0 font-display text-xl font-extrabold uppercase text-accent hover:bg-accent hover:text-accent-ink"
+              aria-label="Wäre ok"
+              title="Wäre ok"
+              onClick={() => cast(queue[0], "maybe")}
+            >
+              ok
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.06 }}
@@ -134,13 +152,15 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
               transition={SPRING}
               className="btn h-[4.5rem] w-[4.5rem] rounded-full border-2 border-yes p-0 text-3xl text-yes hover:bg-yes hover:text-accent-ink"
               aria-label="Ja"
-              onClick={() => cast(queue[0], true)}
+              title="Ja"
+              onClick={() => cast(queue[0], "yes")}
             >
               ♥
             </motion.button>
             <span className="w-12" aria-hidden />
           </div>
-          <p className="hidden text-center text-sm text-muted sm:block">Am Laptop: Pfeiltasten zum Wischen, Rücktaste nimmt zurück.</p>
+          <p className="text-center text-sm text-muted sm:hidden">Nach oben wischen heißt „Wäre ok“.</p>
+          <p className="hidden text-center text-sm text-muted sm:block">Am Laptop: ← Nein, ↑ Wäre ok, → Ja. Rücktaste nimmt zurück.</p>
         </>
       ) : (
         <motion.section
@@ -178,6 +198,7 @@ function FinishButton({ state, onChange }: { state: RoomState; onChange: () => v
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const top = state.ranking[0];
+  const tied = tiedLeaders(state.ranking).length;
   return (
     <div className="flex flex-col gap-3 border-t-2 border-dashed border-line pt-4">
       {top && (
@@ -194,7 +215,7 @@ function FinishButton({ state, onChange }: { state: RoomState; onChange: () => v
           setBusy(true);
           try {
             await api(`/api/rooms/${state.code}/finish`, {
-              body: { winnerTmdbId: top?.tmdbId ?? null, addToAbspann: addToAbspann && !!top },
+              body: { addToAbspann: addToAbspann && !!top },
             });
             onChange();
           } catch (e) {
@@ -203,16 +224,21 @@ function FinishButton({ state, onChange }: { state: RoomState; onChange: () => v
           }
         }}
       >
-        Abstimmung beenden{top ? `: ${top.title}` : ""}
+        {tied > 1 ? `Abstimmung beenden, dann Stichwahl (${tied} Filme)` : `Abstimmung beenden${top ? `: ${top.title}` : ""}`}
       </button>
+      {tied > 1 && (
+        <p className="text-center text-sm text-muted">{tied} Filme liegen gleichauf. Danach wählt jede Person genau einen davon, damit nur einer gewinnt.</p>
+      )}
     </div>
   );
 }
 
 const cardVariants = {
   // Neue Karten tauchen hinten im Stapel auf. Bei Rückgängig fliegt die Karte von der Seite zurück, zu der sie raus ist.
-  initial: (enterFrom: number) =>
-    enterFrom ? { x: enterFrom * 520, rotate: enterFrom * 22, opacity: 1 } : { scale: 0.86, y: 46, opacity: 0 },
+  initial: (enterFrom: Choice | null) =>
+    enterFrom
+      ? { x: FLY[enterFrom].x * 520, y: FLY[enterFrom].y * 620, rotate: FLY[enterFrom].x * 22, opacity: 1 }
+      : { scale: 0.86, y: 46, opacity: 0 },
   // Stapel: hintere Karten etwas kleiner und tiefer, rücken mit Federung nach vorne
   stack: (depth: number) => ({
     x: 0,
@@ -223,10 +249,10 @@ const cardVariants = {
     transition: SPRING,
   }),
   // Rausfliegen in Wischrichtung (custom kommt von AnimatePresence, damit auch Knopf und Tastatur passen)
-  exit: (dir: number) => ({
-    x: dir * 640,
-    y: 40,
-    rotate: dir * 26,
+  exit: (choice: Choice) => ({
+    x: FLY[choice].x * 640,
+    y: FLY[choice].y ? FLY[choice].y * 760 : 40,
+    rotate: FLY[choice].x * 26,
     opacity: 0,
     zIndex: 30,
     transition: { duration: 0.42, ease: [0.22, 0.8, 0.32, 1] as [number, number, number, number] },
@@ -241,26 +267,33 @@ function SwipeCard({
 }: {
   movie: Movie;
   depth: number;
-  enterFrom: number;
-  onVote: (liked: boolean) => void;
+  enterFrom: Choice | null;
+  onVote: (choice: Choice) => void;
 }) {
   const top = depth === 0;
   const x = useMotionValue(0);
+  const y = useMotionValue(0);
   const rotate = useTransform(x, [-320, 0, 320], [-16, 0, 16]);
   const yesOpacity = useTransform(x, [24, THRESHOLD], [0, 1]);
   const noOpacity = useTransform(x, [-THRESHOLD, -24], [1, 0]);
   const yesScale = useTransform(x, [24, THRESHOLD], [0.7, 1]);
   const noScale = useTransform(x, [-THRESHOLD, -24], [1, 0.7]);
-  const glow = useTransform(
-    x,
-    [-THRESHOLD, 0, THRESHOLD],
-    ["inset 0 0 0 4px rgb(255 138 122 / 0.9)", "inset 0 0 0 0px rgb(0 0 0 / 0)", "inset 0 0 0 4px rgb(143 224 176 / 0.9)"],
-  );
+  // "Wäre ok" zählt nur, wenn klar nach oben gewischt wird (mehr hoch als zur Seite)
+  const maybeOpacity = useTransform(() => (Math.abs(y.get()) > Math.abs(x.get()) ? clamp((-y.get() - 24) / (THRESHOLD - 24)) : 0));
+  const maybeScale = useTransform(maybeOpacity, [0, 1], [0.7, 1]);
+  const glow = useTransform(() => {
+    const up = Math.abs(y.get()) > Math.abs(x.get()) && y.get() < 0;
+    const t = clamp((up ? -y.get() : Math.abs(x.get())) / THRESHOLD);
+    const rgb = up ? "255 201 77" : x.get() > 0 ? "143 224 176" : "255 138 122";
+    return `inset 0 0 0 ${(t * 4).toFixed(1)}px rgb(${rgb} / ${(t * 0.9).toFixed(2)})`;
+  });
 
   function onDragEnd(_: unknown, info: PanInfo) {
     const { offset, velocity } = info;
-    if (offset.x > THRESHOLD || velocity.x > FLICK) onVote(true);
-    else if (offset.x < -THRESHOLD || velocity.x < -FLICK) onVote(false);
+    const upwards = -offset.y > Math.abs(offset.x);
+    if (upwards && (-offset.y > THRESHOLD || -velocity.y > FLICK)) onVote("maybe");
+    else if (offset.x > THRESHOLD || velocity.x > FLICK) onVote("yes");
+    else if (offset.x < -THRESHOLD || velocity.x < -FLICK) onVote("no");
     // sonst federt die Karte über dragConstraints von selbst zurück
   }
 
@@ -271,10 +304,10 @@ function SwipeCard({
       initial={cardVariants.initial(enterFrom)}
       animate="stack"
       exit="exit"
-      style={{ x, rotate, zIndex: 10 - depth }}
+      style={{ x, y, rotate, zIndex: 10 - depth }}
       drag={top}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={{ left: 0.95, right: 0.95, top: 0.2, bottom: 0.2 }}
+      dragElastic={{ left: 0.95, right: 0.95, top: 0.9, bottom: 0.15 }}
       dragTransition={{ bounceStiffness: 420, bounceDamping: 26 }}
       whileDrag={{ scale: 1.03, cursor: "grabbing" }}
       onDragEnd={onDragEnd}
@@ -304,6 +337,12 @@ function SwipeCard({
           >
             Nö
           </motion.span>
+          <motion.span
+            className="absolute top-1/3 left-1/2 -translate-x-1/2 -rotate-3 whitespace-nowrap rounded-lg border-4 border-accent px-3 py-0.5 font-display text-4xl font-extrabold uppercase text-accent"
+            style={{ opacity: maybeOpacity, scale: maybeScale }}
+          >
+            Wär ok
+          </motion.span>
         </>
       )}
       <div className="absolute inset-x-0 bottom-0 p-5">
@@ -317,3 +356,5 @@ function SwipeCard({
     </motion.article>
   );
 }
+
+const clamp = (v: number) => Math.min(1, Math.max(0, v));

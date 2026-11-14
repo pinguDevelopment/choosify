@@ -9,6 +9,7 @@ import { GenrePicker } from "./GenrePicker";
 import { Lobby } from "./Lobby";
 import { Swiper } from "./Swiper";
 import { Results } from "./Results";
+import { Runoff } from "./Runoff";
 
 const POLL_MS = 2500;
 
@@ -66,6 +67,8 @@ export function RoomClient({ code }: { code: string }) {
     body = <Lobby state={state} onChange={refresh} />;
   } else if (state.status === "voting") {
     body = <Swiper state={state} onChange={refresh} />;
+  } else if (state.status === "runoff") {
+    body = <Runoff state={state} onChange={refresh} />;
   } else {
     body = <Results state={state} />;
   }

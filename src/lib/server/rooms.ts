@@ -5,7 +5,8 @@ import { env } from "./env";
 import { discover, posterUrl } from "./tmdb";
 import { hashSecret, newRoomCode, newSecret } from "./tokens";
 import { setCrewCookie, setParticipantCookie, currentCrew, type Participant, type Room } from "./session";
-import { pickCandidates, releaseYear } from "../candidates";
+import { pickCandidates, releaseYear, personalOrder, type Choice } from "../candidates";
+import { runoffResult, tiedLeaders } from "../ranking";
 
 export { AppError };
 
@@ -145,29 +146,88 @@ export async function startVoting(room: Room, me: Participant) {
   if (!upd?.length) throw new AppError(409, "Die Runde läuft schon");
 }
 
-export async function vote(room: Room, me: Participant, tmdbId: number, liked: boolean | null) {
+const CHOICE_TO_DB: Record<Choice, number> = { yes: 1, maybe: 0, no: -1 };
+const DB_TO_CHOICE: Record<number, Choice> = { 1: "yes", 0: "maybe", [-1]: "no" };
+
+export async function vote(room: Room, me: Participant, tmdbId: number, choice: Choice | null) {
   if (room.status !== "voting") throw new AppError(409, "Gerade wird nicht abgestimmt");
-  if (liked === null) {
+  if (choice === null) {
     const { error } = await db().from("votes").delete().eq("participant_id", me.id).eq("tmdb_id", tmdbId);
     if (error) throw error;
     return;
   }
   const { error } = await db()
     .from("votes")
-    .upsert({ room_id: room.id, participant_id: me.id, tmdb_id: tmdbId, liked, voted_at: new Date().toISOString() });
+    .upsert({ room_id: room.id, participant_id: me.id, tmdb_id: tmdbId, choice: CHOICE_TO_DB[choice], voted_at: new Date().toISOString() });
   // FK-Fehler = Film gehört nicht zu diesem Raum
   if (error?.code === "23503") throw new AppError(400, "Unbekannter Film");
   if (error) throw error;
 }
 
-export async function finish(room: Room, me: Participant, winnerTmdbId: number | null) {
+/**
+ * Host beendet die Abstimmung. Es gibt immer genau einen Gewinner:
+ * Liegen vorne mehrere Filme gleichauf, startet zuerst eine Stichwahl zwischen ihnen.
+ * Während der Stichwahl beendet derselbe Knopf die Stichwahl vorzeitig.
+ */
+export async function finish(room: Room, me: Participant, addToAbspann: boolean): Promise<{ runoff: boolean }> {
   if (!me.is_host) throw new AppError(403, "Nur der Host kann beenden");
+  if (room.status === "runoff") {
+    await resolveRunoff(room);
+    return { runoff: false };
+  }
   if (room.status !== "voting") throw new AppError(409, "Gerade wird nicht abgestimmt");
-  const { error } = await db()
+  const ranking = await loadRanking(room.id);
+  const leaders = tiedLeaders(ranking);
+  if (leaders.length > 1) {
+    const { data, error } = await db()
+      .from("rooms")
+      .update({ status: "runoff", runoff_ids: leaders.map((r) => r.tmdbId), winner_to_abspann: addToAbspann })
+      .eq("id", room.id)
+      .eq("status", "voting")
+      .select("id");
+    if (error) throw error;
+    if (!data?.length) throw new AppError(409, "Die Abstimmung ist schon beendet");
+    return { runoff: true };
+  }
+  await complete(room, "voting", ranking[0]?.tmdbId ?? null, addToAbspann);
+  return { runoff: false };
+}
+
+/** Setzt den Gewinner. Der Status-Filter sorgt dafür, dass das nur einmal passiert. */
+async function complete(room: Room, from: Room["status"], winner: number | null, toAbspann: boolean) {
+  const { data, error } = await db()
     .from("rooms")
-    .update({ status: "done", winner_tmdb_id: winnerTmdbId })
-    .eq("id", room.id);
+    .update({ status: "done", winner_tmdb_id: winner })
+    .eq("id", room.id)
+    .eq("status", from)
+    .select("id");
   if (error) throw error;
+  if (data?.length && toAbspann && winner) await addWinnerToAbspann(room, winner);
+}
+
+async function resolveRunoff(room: Room) {
+  const { data, error } = await db().from("runoff_votes").select("tmdb_id").eq("room_id", room.id);
+  if (error) throw error;
+  const { winner } = runoffResult(room.runoff_ids ?? [], (data ?? []).map((v) => v.tmdb_id));
+  await complete(room, "runoff", winner, room.winner_to_abspann);
+}
+
+/** Stimme in der Stichwahl: genau ein Film pro Person, änderbar bis zum Ende. */
+export async function runoffVote(room: Room, me: Participant, tmdbId: number) {
+  if (room.status !== "runoff") throw new AppError(409, "Gerade läuft keine Stichwahl");
+  if (!room.runoff_ids?.includes(tmdbId)) throw new AppError(400, "Dieser Film ist nicht in der Stichwahl");
+  const { error } = await db()
+    .from("runoff_votes")
+    .upsert({ room_id: room.id, participant_id: me.id, tmdb_id: tmdbId, voted_at: new Date().toISOString() });
+  if (error) throw error;
+  // Haben alle gewählt, steht der Gewinner sofort fest.
+  const [{ count: people, error: pErr }, { count: picks, error: vErr }] = await Promise.all([
+    db().from("participants").select("id", { count: "exact", head: true }).eq("room_id", room.id),
+    db().from("runoff_votes").select("participant_id", { count: "exact", head: true }).eq("room_id", room.id),
+  ]);
+  if (pErr) throw pErr;
+  if (vErr) throw vErr;
+  if (people && picks && picks >= people) await resolveRunoff(room);
 }
 
 // ---- Zustand für die Oberfläche -------------------------------------------
@@ -179,8 +239,10 @@ export type RankingRow = {
   year: number | null;
   rating: number | null;
   likes: number;
+  maybes: number;
   dislikes: number;
   unanimous: boolean;
+  acceptable: boolean;
 };
 
 export async function roomState(room: Room, me: Participant | null) {
@@ -199,7 +261,7 @@ export async function roomState(room: Room, me: Participant | null) {
     me: me ? { name: me.name, isHost: me.is_host, genresDone: me.genres_done, genreIds: me.genre_ids } : null,
   };
   // Wer nicht beigetreten ist, sieht nur das Nötigste zum Beitreten.
-  if (!me) return { ...base, participants: [], movies: [], myVotes: {}, ranking: [], winner: null };
+  if (!me) return { ...base, participants: [], movies: [], myVotes: {}, ranking: [], runoff: null, winner: null };
 
   const [{ data: movies, error: mErr }, { data: votes, error: vErr }] = await Promise.all([
     db()
@@ -207,30 +269,19 @@ export async function roomState(room: Room, me: Participant | null) {
       .select("tmdb_id, title, overview, poster_path, release_year, vote_average, genre_ids")
       .eq("room_id", room.id)
       .order("position"),
-    db().from("votes").select("participant_id, tmdb_id, liked").eq("room_id", room.id),
+    db().from("votes").select("participant_id, tmdb_id, choice").eq("room_id", room.id),
   ]);
   if (mErr) throw mErr;
   if (vErr) throw vErr;
 
   const votedCount = new Map<string, number>();
-  const myVotes: Record<number, boolean> = {};
+  const myVotes: Record<number, Choice> = {};
   for (const v of votes ?? []) {
     votedCount.set(v.participant_id, (votedCount.get(v.participant_id) ?? 0) + 1);
-    if (v.participant_id === me.id) myVotes[v.tmdb_id] = v.liked;
+    if (v.participant_id === me.id) myVotes[v.tmdb_id] = DB_TO_CHOICE[v.choice];
   }
 
-  const { data: rank, error: rErr } = await db().rpc("room_ranking", { p_room_id: room.id });
-  if (rErr) throw rErr;
-  const ranking: RankingRow[] = (rank ?? []).map((r: Record<string, unknown>) => ({
-    tmdbId: r.tmdb_id as number,
-    title: r.title as string,
-    poster: posterUrl(r.poster_path as string | null),
-    year: (r.release_year as number | null) ?? null,
-    rating: r.vote_average != null ? Number(r.vote_average) : null,
-    likes: r.likes as number,
-    dislikes: r.dislikes as number,
-    unanimous: r.unanimous as boolean,
-  }));
+  const [ranking, runoff] = await Promise.all([loadRanking(room.id), runoffState(room, me)]);
 
   return {
     ...base,
@@ -240,18 +291,57 @@ export async function roomState(room: Room, me: Participant | null) {
       genresDone: p.genres_done,
       voted: votedCount.get(p.id) ?? 0,
     })),
-    movies: (movies ?? []).map((m) => ({
-      tmdbId: m.tmdb_id,
-      title: m.title,
-      overview: m.overview,
-      poster: posterUrl(m.poster_path, "w500"),
-      year: m.release_year,
-      rating: m.vote_average != null ? Number(m.vote_average) : null,
-      genreIds: m.genre_ids,
-    })),
+    // Jede Person bekommt eine eigene, gemischte Reihenfolge (fester Seed pro Person),
+    // Filme derselben Reihe werden dabei auseinandergezogen.
+    movies: personalOrder(
+      (movies ?? []).map((m) => ({
+        tmdbId: m.tmdb_id,
+        title: m.title,
+        overview: m.overview,
+        poster: posterUrl(m.poster_path, "w500"),
+        year: m.release_year,
+        rating: m.vote_average != null ? Number(m.vote_average) : null,
+        genreIds: m.genre_ids,
+      })),
+      me.id,
+    ),
     myVotes,
     ranking,
+    runoff,
     winner: room.winner_tmdb_id,
+  };
+}
+
+async function loadRanking(roomId: string): Promise<RankingRow[]> {
+  const { data: rank, error } = await db().rpc("room_ranking", { p_room_id: roomId });
+  if (error) throw error;
+  return (rank ?? []).map((r: Record<string, unknown>) => ({
+    tmdbId: r.tmdb_id as number,
+    title: r.title as string,
+    poster: posterUrl(r.poster_path as string | null),
+    year: (r.release_year as number | null) ?? null,
+    rating: r.vote_average != null ? Number(r.vote_average) : null,
+    likes: r.likes as number,
+    maybes: r.maybes as number,
+    dislikes: r.dislikes as number,
+    unanimous: r.unanimous as boolean,
+    acceptable: r.acceptable as boolean,
+  }));
+}
+
+/** Stichwahl: während sie läuft, bleibt der Zwischenstand geheim (kein Mitläufer-Effekt). */
+async function runoffState(room: Room, me: Participant) {
+  if (!room.runoff_ids?.length) return null;
+  const { data, error } = await db().from("runoff_votes").select("participant_id, tmdb_id").eq("room_id", room.id);
+  if (error) throw error;
+  const picks = data ?? [];
+  const result = runoffResult(room.runoff_ids, picks.map((v) => v.tmdb_id));
+  return {
+    tmdbIds: room.runoff_ids,
+    myPick: picks.find((v) => v.participant_id === me.id)?.tmdb_id ?? null,
+    votes: picks.length,
+    tally: room.status === "done" ? result.tally : null,
+    decidedByRating: room.status === "done" ? result.stillTied : false,
   };
 }
 
