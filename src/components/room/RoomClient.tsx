@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { Brand, TicketCode } from "@/components/Brand";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { RoomState } from "./types";
@@ -43,8 +44,8 @@ export function RoomClient({ code }: { code: string }) {
   if (!state) {
     body = error ? (
       <div className="card text-center">
-        <p className="text-lg font-semibold">{error}</p>
-        <p className="mt-1 text-sm text-muted">Vielleicht ist die Runde abgelaufen oder der Code falsch.</p>
+        <h1 className="text-3xl">{error}</h1>
+        <p className="mt-2 text-muted">Runden laufen nach 24 Stunden ab. Prüf den Code oder lass dir einen neuen Link schicken.</p>
         <Link href="/" className="btn-ghost mt-4">
           Zur Startseite
         </Link>
@@ -70,12 +71,10 @@ export function RoomClient({ code }: { code: string }) {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-5">
       <header className="flex items-center justify-between">
-        <Link href="/" className="font-bold tracking-tight">
-          🎬 Film Aussucher
-        </Link>
-        <span className="rounded-lg bg-surface px-2.5 py-1 font-mono text-xs tracking-widest text-muted">{code}</span>
+        <Brand />
+        <TicketCode code={code} />
       </header>
       {body}
       {state && error && <p className="text-center text-sm text-no">{error}</p>}

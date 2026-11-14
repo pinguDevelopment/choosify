@@ -1,4 +1,4 @@
-# Film Aussucher
+# Choosify
 
 Gemeinsam schnell einen Film finden: Der Host erstellt eine Runde und wählt die Streaming-Anbieter,
 alle joinen per QR-Code, wählen Genres und swipen Filme. Am Ende gewinnt der Film, den alle

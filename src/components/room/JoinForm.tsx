@@ -13,7 +13,7 @@ export function JoinForm({ code, status, onJoined }: { code: string; status: str
 
   return (
     <form
-      className="card flex flex-col gap-4"
+      className="flex flex-col gap-5 pt-4"
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
@@ -29,8 +29,8 @@ export function JoinForm({ code, status, onJoined }: { code: string; status: str
       }}
     >
       <div>
-        <h1 className="text-2xl font-bold">Du wurdest eingeladen 🍿</h1>
-        <p className="mt-1 text-muted">Wie sollen dich die anderen sehen?</p>
+        <h1 className="text-4xl">Rein in die Runde</h1>
+        <p className="mt-2 text-muted">Unter welchem Namen sehen dich die anderen?</p>
       </div>
       <input
         className="input"

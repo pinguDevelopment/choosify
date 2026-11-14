@@ -8,7 +8,7 @@ function useJoinQr(code: string) {
   const [qr, setQr] = useState<{ url: string; img: string } | null>(null);
   useEffect(() => {
     const url = `${window.location.origin}/r/${code}`;
-    QRCode.toDataURL(url, { margin: 1, width: 480, color: { dark: "#0d0b10", light: "#f3eee6" } }).then((img) =>
+    QRCode.toDataURL(url, { margin: 1, width: 480, color: { dark: "#2a0a14", light: "#f6e7da" } }).then((img) =>
       setQr({ url, img }),
     );
   }, [code]);
@@ -25,8 +25,8 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
 
   return (
     <>
-      <section className="card flex flex-col items-center gap-3 text-center">
-        <h2 className="text-lg font-semibold">Scannen und mitmachen</h2>
+      <section className="card flex flex-col items-center gap-4 text-center">
+        <h2 className="text-3xl">Alle mal scannen</h2>
         {qr ? (
           // eslint-disable-next-line @next/next/no-img-element -- data: URL, kein Optimieren nötig
           <img src={qr.img} alt={`QR-Code zum Beitreten: ${qr.url}`} className="w-56 rounded-xl" />
@@ -35,34 +35,34 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
         )}
         <button
           type="button"
-          className="text-sm text-muted underline-offset-4 hover:underline"
+          className="text-muted underline decoration-line underline-offset-4 hover:text-text"
           onClick={async () => {
             if (!qr) return;
-            if (navigator.share) await navigator.share({ title: "Film Aussucher", url: qr.url }).catch(() => {});
+            if (navigator.share) await navigator.share({ title: "Choosify", url: qr.url }).catch(() => {});
             else {
               await navigator.clipboard.writeText(qr.url);
               setCopied(true);
             }
           }}
         >
-          {copied ? "Link kopiert ✓" : "Link teilen"}
+          {copied ? "Link kopiert" : "Link teilen"}
         </button>
       </section>
 
       {!compact && (
-        <section className="card flex flex-col gap-3">
+        <section className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold">Dabei ({state.participants.length})</h2>
-            <span className="text-sm text-muted">{ready} bereit</span>
+            <h2 className="text-3xl">{state.participants.length} im Saal</h2>
+            <span className="text-muted">{ready} bereit</span>
           </div>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col">
             {state.participants.map((p) => (
-              <li key={p.name} className="flex items-center justify-between rounded-xl bg-surface-2 px-4 py-2.5">
+              <li key={p.name} className="flex items-center justify-between border-b border-line/70 py-2.5 text-lg">
                 <span>
                   {p.name}
-                  {p.isHost && <span className="ml-2 text-xs text-accent">Host</span>}
+                  {p.isHost && <span className="ml-2 text-sm text-accent">Host</span>}
                 </span>
-                <span className={p.genresDone ? "text-yes" : "text-muted"}>{p.genresDone ? "bereit" : "wählt …"}</span>
+                <span className={p.genresDone ? "text-yes" : "text-muted"}>{p.genresDone ? "bereit" : "wählt noch"}</span>
               </li>
             ))}
           </ul>
@@ -85,14 +85,14 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
                   }
                 }}
               >
-                {busy ? "Suche Filme …" : "Swipen starten"}
+                {busy ? "Filme werden gesucht …" : "Swipen starten"}
               </button>
               {ready < state.participants.length && (
-                <p className="text-center text-xs text-muted">Du kannst auch starten, wenn noch nicht alle bereit sind.</p>
+                <p className="text-center text-sm text-muted">Du kannst auch starten, wenn noch nicht alle bereit sind.</p>
               )}
             </>
           ) : (
-            <p className="text-center text-sm text-muted">Warte, bis der Host startet …</p>
+            <p className="text-center text-muted">Warte, bis der Host startet …</p>
           )}
         </section>
       )}
