@@ -5,6 +5,7 @@ import { env } from "./env";
 import { discover, getMovieDetails, getProviders, posterUrl, type MovieDetails } from "./tmdb";
 import { genreNames, movieTags } from "../tags";
 import { hashSecret, newRoomCode, newSecret } from "./tokens";
+import { currentAccount, selectCrew } from "./account";
 import { setCrewCookie, setParticipantCookie, currentCrew, type Participant, type Room } from "./session";
 import { BUCKETS, mixBuckets, pickCandidates, randomPage, releaseYear, personalOrder, streamableOn, type Choice, type TmdbMovie } from "../candidates";
 import { runoffResult, tiedLeaders } from "../ranking";
@@ -24,19 +25,27 @@ export async function createRoom(input: {
 }): Promise<{ code: string }> {
   const app = env().APP_SECRET;
 
-  // Crew des Hosts wiederverwenden oder neu anlegen (gehört zum Browser des Hosts).
+  // Crew des Hosts wiederverwenden oder neu anlegen. Angemeldet gehört sie dem Konto
+  // (dann ohne Crew-Cookie, damit auf fremden Geräten nach dem Abmelden nichts zurückbleibt),
+  // sonst dem Browser des Hosts.
   let crew = await currentCrew();
   if (!crew) {
+    const account = await currentAccount();
     const secret = newSecret();
     const name = input.crewName?.trim() || `Crew von ${input.hostName}`;
     const { data, error } = await db()
       .from("crews")
-      .insert({ name, secret_hash: hashSecret(secret, app) })
+      .insert({ name, secret_hash: hashSecret(secret, app), account_id: account?.id ?? null })
       .select("id, name")
       .single();
     if (error) throw error;
     crew = data;
-    await setCrewCookie(data.id, secret);
+    if (account) await selectCrew(data.id);
+    else await setCrewCookie(data.id, secret);
+  } else {
+    // Zuletzt benutzte Crew steht auf anderen Geräten vorne.
+    const { error } = await db().from("crews").update({ last_used_at: new Date().toISOString() }).eq("id", crew.id);
+    if (error) throw error;
   }
 
   // Code-Kollisionen sind extrem unwahrscheinlich, trotzdem abfangen.

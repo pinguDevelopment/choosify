@@ -18,6 +18,8 @@ Die Oberfläche und alle Texte sind Deutsch. Mit dem Nutzer wird Deutsch gesproc
 
 - Der Browser spricht **nie** direkt mit der Datenbank. Alles läuft über API-Routen unter `src/app/api/` mit dem Service-Role-Key (`src/lib/server/db.ts`). RLS ist an, ohne Policies. `anon`/`authenticated` haben keine Rechte. Jede neue Tabelle braucht `enable row level security`.
 - Teilnehmer und Crews haben 256-Bit-Tokens in httpOnly-Cookies (`fa_p_<code>`, `fa_crew`). In der Datenbank steht nur der HMAC mit `APP_SECRET` (`src/lib/server/tokens.ts`).
+- **Konto (optional, nur für Hosts)** per Magic-Link oder Code aus der Mail (`src/lib/server/auth.ts`, `account.ts`). Supabase Auth prüft nur die E-Mail-Adresse, die Supabase-Sitzung wird verworfen. Danach gilt eine eigene Sitzung (`fa_acc`, HMAC in `account_sessions`). Für `verifyOtp` immer einen eigenen Client pro Anfrage nehmen, nie `db()`, sonst läuft der geteilte Client mit Nutzerrechten. Crews gehören dann dem Konto (`crews.account_id`), die aktive Crew steht in `fa_crew_sel` und wird bei jedem Zugriff gegen das Konto geprüft. Eine Crew vom Gerät wird nur nach Rückfrage übernommen (sonst würde ein Login auf einem fremden Gerät dessen Crew einsacken). Gäste brauchen nie ein Konto.
+- Die Bestätigung des Magic-Links läuft per POST hinter einem Knopf (`/konto/bestaetigen`), weil Link-Scanner in Mailprogrammen GET-Links öffnen und das Token verbrauchen.
 - Schreibende Raum-Endpunkte gehen über `roomAction` (`src/lib/server/room-route.ts`). Das deckt Origin-Check (CSRF), Rate Limit, Raum laden, Cookie prüfen und zod-Validierung ab.
 - Rate Limits pro Person (Cookie), nur ersatzweise pro IP. Teure Aktionen nutzen das geteilte Limit in Postgres (`rate_hit`).
 - Entscheidungen trifft der Server: Rangliste und Gewinner kommen aus `room_ranking` bzw. der Stichwahl, nicht aus Client-Daten.
@@ -31,11 +33,11 @@ npm run dev          # Entwicklungsserver
 npm run typecheck    # tsc --noEmit
 npm run lint         # ESLint
 npm test             # Unit-Tests: node --test tests/*.test.ts
-npm run e2e          # Playwright-Ablauf mit 3 Personen (BASE=http://localhost:3100, SHOTS=<ordner> für Screenshots)
+npm run e2e          # Playwright: Ablauf mit 3 Personen + Login auf mehreren Geräten (BASE=http://localhost:3100, SHOTS=<ordner> für Screenshots)
 psql -f tests/ranking.sql   # Rangliste gegen eine Test-Datenbank prüfen (läuft in einer Transaktion)
 ```
 
-Lokal ohne echte Dienste: Postgres 16 + PostgREST (Docker) + kleiner Proxy unter `/rest/v1`, dazu `TMDB_MOCK=1` (nur außerhalb von Production). TMDB und Supabase sind aus der Claude-Cloud-Umgebung blockiert, Live-Tests laufen auf dem Rechner des Nutzers.
+Lokal ohne echte Dienste: Postgres 16 + PostgREST (Docker) + kleiner Proxy unter `/rest/v1`, dazu `TMDB_MOCK=1` und `AUTH_MOCK=1` (nur außerhalb von Production; Login-Code ist dann immer 123456, der Link steht im Server-Log). TMDB und Supabase sind aus der Claude-Cloud-Umgebung blockiert, Live-Tests laufen auf dem Rechner des Nutzers.
 
 ## Datenbank
 

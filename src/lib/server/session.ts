@@ -3,9 +3,8 @@ import { cookies } from "next/headers";
 import { db } from "./db";
 import { env } from "./env";
 import { hashSecret, isRoomCode, safeEqualHex } from "./tokens";
-
-const secure = process.env.NODE_ENV === "production";
-const base = { httpOnly: true, secure, sameSite: "lax" as const, path: "/" };
+import { accountCrews, currentAccount, CREW_SELECT_COOKIE } from "./account";
+import { cookieBase as base } from "./cookie-opts";
 
 export const participantCookie = (code: string) => `fa_p_${code}`;
 const CREW_COOKIE = "fa_crew";
@@ -67,18 +66,39 @@ export async function currentParticipant(room: Room): Promise<Participant | null
   return data as Participant | null;
 }
 
-/** Die Crew des Browsers (nur der Host hat sie), oder null. */
-export async function currentCrew(): Promise<{ id: string; name: string } | null> {
+type DeviceCrew = { id: string; name: string; account_id: string | null };
+
+/** Die Crew aus dem Crew-Cookie dieses Geräts (ohne Konto), oder null. */
+export async function deviceCrew(): Promise<DeviceCrew | null> {
   const raw = (await cookies()).get(CREW_COOKIE)?.value;
   if (!raw || raw.length > 200) return null;
   const [id, secret] = raw.split(".");
   if (!id || !secret || !/^[0-9a-f-]{36}$/.test(id)) return null;
   const { data, error } = await db()
     .from("crews")
-    .select("id, name, secret_hash")
+    .select("id, name, secret_hash, account_id")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
   if (!data || !safeEqualHex(data.secret_hash, hashSecret(secret, env().APP_SECRET))) return null;
-  return { id: data.id, name: data.name };
+  return { id: data.id, name: data.name, account_id: data.account_id };
+}
+
+/**
+ * Die aktive Crew dieses Browsers, oder null.
+ *  - Angemeldet: die gewählte Crew des Kontos (sonst die zuletzt benutzte). Hat das Konto noch
+ *    keine Crew, zählt die Crew vom Gerät, solange sie keinem anderen Konto gehört.
+ *  - Ohne Konto: die Crew aus dem Crew-Cookie (wie bisher).
+ */
+export async function currentCrew(): Promise<{ id: string; name: string } | null> {
+  const [account, device] = await Promise.all([currentAccount(), deviceCrew()]);
+  if (account) {
+    const crews = await accountCrews(account.id);
+    const sel = (await cookies()).get(CREW_SELECT_COOKIE)?.value;
+    const pick = crews.find((c) => c.id === sel) ?? crews.find((c) => c.id === device?.id) ?? crews[0];
+    if (pick) return pick;
+    if (device && !device.account_id) return { id: device.id, name: device.name };
+    return null;
+  }
+  return device ? { id: device.id, name: device.name } : null;
 }
