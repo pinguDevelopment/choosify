@@ -4,7 +4,7 @@ import Link from "next/link";
 export function Brand() {
   return (
     <Link href="/" className="font-display text-2xl font-extrabold tracking-wide text-accent">
-      Choosify
+      Filmabend
     </Link>
   );
 }

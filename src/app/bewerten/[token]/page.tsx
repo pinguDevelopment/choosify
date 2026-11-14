@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { RateClient } from "@/components/RateClient";
 import { Brand } from "@/components/Brand";
 
-export const metadata = { title: "Film bewerten – Choosify", robots: { index: false } };
+export const metadata = { title: "Film bewerten – Filmabend", robots: { index: false } };
 
 async function Rate({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
