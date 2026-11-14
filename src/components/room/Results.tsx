@@ -3,23 +3,23 @@ import type { RankingRow, RoomState } from "./types";
 import { Confetti } from "./Confetti";
 
 export function RankingList({ ranking }: { ranking: RankingRow[] }) {
-  if (!ranking.length) return <p className="text-sm text-muted">Noch keine Zusagen.</p>;
+  if (!ranking.length) return <p className="text-muted">Noch hat niemand Ja gesagt.</p>;
   return (
-    <ol className="flex flex-col gap-2">
+    <ol className="flex flex-col">
       {ranking.map((r, i) => (
-        <li key={r.tmdbId} className="flex items-center gap-3 rounded-xl bg-surface-2 p-2 pr-4">
-          <span className="w-6 text-center font-mono text-muted">{i + 1}</span>
+        <li key={r.tmdbId} className="flex items-center gap-3 border-b border-line/70 py-2.5 last:border-0">
+          <span className="w-7 text-center font-display text-2xl font-extrabold text-muted">{i + 1}</span>
           {r.poster ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={r.poster} alt="" className="h-14 w-10 rounded-md object-cover" />
           ) : (
-            <div className="grid h-14 w-10 place-items-center rounded-md bg-surface">🎞️</div>
+            <div className="h-14 w-10 rounded-md bg-surface-2" />
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">{r.title}</p>
-            <p className="text-xs text-muted">{r.year ?? ""}</p>
+            <p className="truncate text-lg font-semibold">{r.title}</p>
+            <p className="text-sm text-muted">{r.year ?? ""}</p>
           </div>
-          <span className={`text-sm font-semibold ${r.unanimous ? "text-yes" : ""}`}>
+          <span className={`font-semibold ${r.unanimous ? "text-yes" : "text-muted"}`}>
             {r.unanimous ? "alle ♥" : `${r.likes} ♥`}
           </span>
         </li>
@@ -34,36 +34,43 @@ export function Results({ state }: { state: RoomState }) {
     <>
       {winner?.unanimous && <Confetti />}
       {winner ? (
-        <section className="card animate-pop overflow-hidden p-0 text-center">
-          {winner.poster && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={winner.poster.replace("/w342/", "/w500/")} alt="" className="mx-auto max-h-96 w-full object-cover" />
-          )}
-          <div className="p-5">
-            <p className="text-sm uppercase tracking-widest text-accent">Heute läuft</p>
-            <h1 className="mt-1 text-3xl font-bold">{winner.title}</h1>
-            <p className="mt-1 text-muted">
-              {winner.unanimous ? "Alle haben Bock 🎉" : `${winner.likes} von ${state.participants.length} haben Bock`}
-            </p>
-            <a
-              className="btn-ghost mt-4"
-              href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${winner.title} ${winner.year ?? ""} Trailer deutsch`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              ▶ Trailer suchen
-            </a>
+        <section className="flex flex-col gap-4 animate-pop">
+          <p className="text-lg text-muted">Heute läuft</p>
+          <div className="marquee text-center">
+            <h1 className="marquee-text text-[clamp(2.4rem,11vw,3.6rem)]">{winner.title}</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            {winner.poster && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={winner.poster} alt="" className="h-28 w-20 shrink-0 rounded-lg object-cover" />
+            )}
+            <div className="flex flex-col gap-3">
+              <p className="text-lg">
+                {winner.unanimous ? "Alle haben Bock." : `${winner.likes} von ${state.participants.length} haben Bock.`}
+              </p>
+              <a
+                className="btn-ghost self-start py-2.5"
+                href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${winner.title} ${winner.year ?? ""} Trailer deutsch`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Trailer suchen
+              </a>
+            </div>
           </div>
         </section>
       ) : (
-        <section className="card text-center">Keiner hatte auf irgendwas Bock. Nächste Runde?</section>
+        <section className="card">
+          <h1 className="text-3xl">Kein Treffer</h1>
+          <p className="mt-2 text-muted">Niemand hat Ja gesagt. Startet eine neue Runde mit anderen Genres oder mehr Diensten.</p>
+        </section>
       )}
-      <section className="card flex flex-col gap-3">
-        <h2 className="font-semibold">Komplette Rangliste</h2>
+      <section className="flex flex-col gap-2">
+        <h2 className="text-3xl">Rangliste</h2>
         <RankingList ranking={state.ranking} />
       </section>
-      <Link href="/" className="btn-ghost">
-        Neue Runde
+      <Link href="/" className="btn-primary">
+        Neue Runde starten
       </Link>
     </>
   );

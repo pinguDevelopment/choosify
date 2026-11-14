@@ -38,10 +38,10 @@ export function CreateRoom() {
   }
 
   return (
-    <form className="card flex flex-col gap-4" onSubmit={submit}>
-      <h2 className="text-lg font-semibold">Neue Runde starten</h2>
+    <form className="flex flex-col gap-5" onSubmit={submit}>
+      <h2 className="text-4xl">Filmabend starten</h2>
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm text-muted">Dein Name</span>
+        <span className="text-muted">Dein Name</span>
         <input
           className="input"
           value={name}
@@ -52,8 +52,8 @@ export function CreateRoom() {
         />
       </label>
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1.5 text-sm text-muted">
-          Welche Streaming-Dienste habt ihr? <span className="opacity-70">(keiner gewählt = alle Filme)</span>
+        <legend className="mb-2 text-muted">
+          Welche Dienste habt ihr? Ohne Auswahl schlagen wir alle Filme vor.
         </legend>
         {providers === null ? (
           <p className="text-sm text-muted">Lade Anbieter …</p>
@@ -86,7 +86,7 @@ export function CreateRoom() {
       </fieldset>
       {error && <p className="text-sm text-no">{error}</p>}
       <button className="btn-primary" disabled={busy || !name.trim()}>
-        {busy ? "Erstelle Runde …" : "Runde erstellen"}
+        {busy ? "Runde wird erstellt …" : "Runde erstellen"}
       </button>
     </form>
   );

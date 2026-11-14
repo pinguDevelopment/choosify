@@ -24,10 +24,10 @@ export function GenrePicker({ code, initial, onDone }: { code: string; initial: 
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   return (
-    <section className="card flex flex-col gap-4">
+    <section className="flex flex-col gap-5">
       <div>
-        <h2 className="text-xl font-bold">Worauf hast du Bock?</h2>
-        <p className="mt-1 text-sm text-muted">Wähle so viele Genres, wie du willst. Gar keins heißt: mir egal.</p>
+        <h2 className="text-4xl">Worauf hast du Bock?</h2>
+        <p className="mt-2 text-muted">Wähl so viele Genres, wie du willst. Gar keins heißt: mir egal.</p>
       </div>
       <div className="flex flex-wrap gap-2">
         {genres === null && !error && Array.from({ length: 10 }, (_, i) => <span key={i} className="h-9 w-24 animate-pulse rounded-full bg-surface-2" />)}

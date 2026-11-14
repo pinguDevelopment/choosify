@@ -4,16 +4,19 @@ import { JoinByCode } from "@/components/JoinByCode";
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-10">
-      <header className="text-center">
-        <p className="text-4xl">🎬</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Film Aussucher</h1>
-        <p className="mt-2 text-muted">Alle swipen, einer gewinnt. Nie wieder eine Stunde Netflix-Scrollen.</p>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-10 px-4 pt-8 pb-12">
+      <header className="flex flex-col gap-5">
+        <div className="marquee text-center">
+          <h1 className="marquee-text text-[clamp(3.4rem,17vw,5rem)]">Choosify</h1>
+        </div>
+        <p className="text-lg text-muted">
+          Jeder wischt durch Filme, die bei euch laufen. Am Ende steht der eine, auf den alle Bock haben.
+        </p>
       </header>
       <CreateRoom />
       <JoinByCode />
-      <Link href="/abspann" className="text-center text-sm text-muted underline-offset-4 hover:underline">
-        Zum Abspann eurer Crew (schon gesehene Filme)
+      <Link href="/abspann" className="text-muted underline decoration-line underline-offset-4 hover:text-text">
+        Abspann: eure schon gesehenen Filme
       </Link>
     </main>
   );

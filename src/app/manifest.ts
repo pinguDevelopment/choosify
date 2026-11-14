@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Film Aussucher",
-    short_name: "Film Aussucher",
+    name: "Choosify",
+    short_name: "Choosify",
     description: "Gemeinsam schnell einen Film finden",
     start_url: "/",
     display: "standalone",
-    background_color: "#0d0b10",
-    theme_color: "#0d0b10",
+    background_color: "#2a0a14",
+    theme_color: "#2a0a14",
     icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
   };
 }
