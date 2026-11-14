@@ -96,8 +96,13 @@ export function limited(req: NextRequest, name: string, perMinute: number, burst
 export async function limitedShared(req: NextRequest, name: string, perMinute: number, burst = perMinute) {
   const local = limited(req, name, perMinute, burst);
   if (local) return local;
+  return limitedSharedKey(`${name}:${clientIp(req)}`, perMinute, burst);
+}
+
+/** Wie limitedShared, aber mit eigenem Schlüssel (z. B. pro E-Mail-Adresse statt pro IP). */
+export async function limitedSharedKey(key: string, perMinute: number, burst = perMinute) {
   const { data, error } = await db().rpc("rate_hit", {
-    p_key: `${name}:${clientIp(req)}`.slice(0, 200),
+    p_key: key.slice(0, 200),
     p_per_minute: perMinute,
     p_burst: burst,
   });
