@@ -9,6 +9,12 @@ export type Movie = {
   year: number | null;
   rating: number | null;
   genreIds: number[];
+  /** deutsche Genre-Namen, wichtigstes zuerst */
+  genres: string[];
+  /** 2 bis 4 Stimmungs-Tags ohne "#", z. B. "lustig", "zeitreise" */
+  tags: string[];
+  /** Laufzeit in Minuten, falls bekannt */
+  runtime: number | null;
 };
 
 export type RankingRow = {
