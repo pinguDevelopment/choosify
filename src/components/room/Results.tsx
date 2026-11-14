@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { RankingRow, RoomState } from "./types";
+import { Confetti } from "./Confetti";
 
 export function RankingList({ ranking }: { ranking: RankingRow[] }) {
   if (!ranking.length) return <p className="text-sm text-muted">Noch keine Zusagen.</p>;
@@ -31,8 +32,9 @@ export function Results({ state }: { state: RoomState }) {
   const winner = state.ranking.find((r) => r.tmdbId === state.winner) ?? state.ranking[0];
   return (
     <>
+      {winner?.unanimous && <Confetti />}
       {winner ? (
-        <section className="card overflow-hidden p-0 text-center">
+        <section className="card animate-pop overflow-hidden p-0 text-center">
           {winner.poster && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={winner.poster.replace("/w342/", "/w500/")} alt="" className="mx-auto max-h-96 w-full object-cover" />
@@ -43,6 +45,14 @@ export function Results({ state }: { state: RoomState }) {
             <p className="mt-1 text-muted">
               {winner.unanimous ? "Alle haben Bock 🎉" : `${winner.likes} von ${state.participants.length} haben Bock`}
             </p>
+            <a
+              className="btn-ghost mt-4"
+              href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${winner.title} ${winner.year ?? ""} Trailer deutsch`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ▶ Trailer suchen
+            </a>
           </div>
         </section>
       ) : (

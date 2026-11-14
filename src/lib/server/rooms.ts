@@ -145,8 +145,13 @@ export async function startVoting(room: Room, me: Participant) {
   if (!upd?.length) throw new AppError(409, "Die Runde läuft schon");
 }
 
-export async function vote(room: Room, me: Participant, tmdbId: number, liked: boolean) {
+export async function vote(room: Room, me: Participant, tmdbId: number, liked: boolean | null) {
   if (room.status !== "voting") throw new AppError(409, "Gerade wird nicht abgestimmt");
+  if (liked === null) {
+    const { error } = await db().from("votes").delete().eq("participant_id", me.id).eq("tmdb_id", tmdbId);
+    if (error) throw error;
+    return;
+  }
   const { error } = await db()
     .from("votes")
     .upsert({ room_id: room.id, participant_id: me.id, tmdb_id: tmdbId, liked, voted_at: new Date().toISOString() });
