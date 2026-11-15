@@ -11,6 +11,7 @@ import { checkSameOrigin, limited, limitedShared, parseBody } from "@/lib/server
 import { handle, jsonError } from "@/lib/server/http";
 import { accountPatchSchema } from "@/lib/server/schemas";
 import { currentCrew, deviceCrew } from "@/lib/server/session";
+import { googleEnabled } from "@/lib/server/google";
 
 /** Anmeldestatus, Favoriten und Crews des Kontos. */
 export async function GET(req: NextRequest) {
@@ -18,7 +19,13 @@ export async function GET(req: NextRequest) {
   if (blocked) return blocked;
   return handle(async () => {
     const account = await currentAccount();
-    if (!account) return Response.json({ account: null }, { headers: { "Cache-Control": "no-store" } });
+    if (!account) {
+      // Google-Knopf nur, wenn Google bei Supabase eingeschaltet ist. In der Fernseher-App nie:
+      // Google lässt die Anmeldung dort (eingebettete WebView) nicht zu.
+      const tvApp = /\bCinemoodTV\//.test(req.headers.get("user-agent") ?? "");
+      const google = !tvApp && (await googleEnabled());
+      return Response.json({ account: null, google }, { headers: { "Cache-Control": "no-store" } });
+    }
     const [crews, active, device] = await Promise.all([accountCrews(account.id), currentCrew(), deviceCrew()]);
     return Response.json(
       {

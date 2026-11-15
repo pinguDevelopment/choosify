@@ -51,12 +51,17 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
-  // Kurze Adresse für die Android-TV-App, damit man am Fernseher nicht den langen GitHub-Link tippen muss
+  // Kurze Adressen für die Android-Apps (Fernseher und Handy), damit man nicht den langen GitHub-Link tippen muss
   async redirects() {
     return [
       {
         source: "/tv-app",
         destination: "https://github.com/pinguDevelopment/cinemood/releases/download/tv-app/cinemood-tv.apk",
+        permanent: false,
+      },
+      {
+        source: "/handy-app",
+        destination: "https://github.com/pinguDevelopment/cinemood/releases/download/handy-app/cinemood-handy.apk",
         permanent: false,
       },
     ];
