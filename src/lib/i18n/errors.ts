@@ -33,6 +33,7 @@ const EN: Record<string, string> = {
     "The link or code is invalid or expired. Just request a new one.",
   "Zu viele Versuche. Bitte kurz warten.": "Too many attempts. Please wait a moment.",
   "Anmeldung gerade nicht möglich. Bitte später nochmal.": "Signing in isn’t possible right now. Please try again later.",
+  "Anmeldung ist auf diesem Server ausgeschaltet": "Signing in is turned off on this server",
   "Die Datenbank ist noch nicht auf dem neuesten Stand. Der Host muss die SQL-Updates einspielen.":
     "The database isn’t up to date yet. The host needs to run the SQL updates.",
   "Interner Fehler": "Internal error",

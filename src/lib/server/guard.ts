@@ -1,7 +1,8 @@
 import "server-only";
 import type { NextRequest } from "next/server";
 import type { z } from "zod";
-import { db } from "./db";
+import { sql } from "kysely";
+import { db, dbReady, dialect } from "./db";
 import { jsonError } from "./http";
 import { isAllowedOrigin, parseAllowList } from "../origin";
 
@@ -101,14 +102,40 @@ export async function limitedShared(req: NextRequest, name: string, perMinute: n
 
 /** Wie limitedShared, aber mit eigenem Schlüssel (z. B. pro E-Mail-Adresse statt pro IP). */
 export async function limitedSharedKey(key: string, perMinute: number, burst = perMinute) {
-  const { data, error } = await db().rpc("rate_hit", {
-    p_key: key.slice(0, 200),
-    p_per_minute: perMinute,
-    p_burst: burst,
-  });
-  if (error) {
-    console.error(error);
+  try {
+    const ok = await rateHit(key.slice(0, 200), perMinute, burst);
+    return ok ? null : jsonError(429, "Zu viele Anfragen, bitte kurz warten");
+  } catch (err) {
+    console.error(err);
     return null; // Limit-Speicher kaputt: lieber durchlassen als die App lahmlegen
   }
-  return data === false ? jsonError(429, "Zu viele Anfragen, bitte kurz warten") : null;
+}
+
+/**
+ * Token-Bucket in der Datenbank, jeweils in einem einzigen Schritt (keine Sperren, keine Deadlocks).
+ * Postgres nutzt die Funktion rate_hit, MariaDB und SQLite rechnen dasselbe direkt im Upsert.
+ */
+async function rateHit(key: string, perMinute: number, burst: number): Promise<boolean> {
+  await dbReady();
+  const d = dialect();
+  if (d === "postgres") {
+    const { rows } = await sql<{ ok: boolean }>`select rate_hit(${key}, ${perMinute}, ${burst}) as ok`.execute(db());
+    return rows[0]?.ok !== false;
+  }
+  if (d === "mysql") {
+    // Bei ON DUPLICATE KEY UPDATE sieht tokens noch das alte updated_at (Zuweisungen von links nach rechts)
+    await sql`insert into rate_limits (\`key\`, tokens, updated_at) values (${key}, ${burst - 1}, current_timestamp(3))
+      on duplicate key update
+        tokens = least(${burst}, tokens + timestampdiff(microsecond, updated_at, current_timestamp(3)) / 60000000 * ${perMinute}) - 1,
+        updated_at = current_timestamp(3)`.execute(db());
+  } else {
+    await sql`insert into rate_limits (key, tokens, updated_at) values (${key}, ${burst - 1}, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      on conflict (key) do update set
+        tokens = min(${burst}, tokens + (julianday('now') - julianday(updated_at)) * 1440.0 * ${perMinute}) - 1,
+        updated_at = excluded.updated_at`.execute(db());
+  }
+  const row = await db().selectFrom("rate_limits").select("tokens").where("key", "=", key).executeTakeFirst();
+  if (!row || row.tokens >= 0) return true;
+  await db().updateTable("rate_limits").set({ tokens: 0 }).where("key", "=", key).execute();
+  return false;
 }

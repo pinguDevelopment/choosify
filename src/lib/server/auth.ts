@@ -3,6 +3,9 @@ import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./env";
 import { AppError } from "./http";
+import { accountsEnabled } from "./db";
+
+const loginOff = () => new AppError(404, "Anmeldung ist auf diesem Server ausgeschaltet");
 
 /**
  * Supabase Auth prüft nur, dass eine E-Mail-Adresse dem Nutzer gehört (Magic-Link oder Code).
@@ -19,13 +22,14 @@ export const MOCK_CODE = "123456";
 // Der geteilte db()-Client darf davon nie etwas abbekommen, sonst liefe er mit Nutzerrechten.
 function authClient() {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = env();
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  return createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, flowType: "implicit" },
   });
 }
 
 /** Schickt die Anmelde-Mail mit Link (zu `redirectTo`) und Code. */
 export async function sendLoginMail(email: string, redirectTo: string): Promise<void> {
+  if (!accountsEnabled()) throw loginOff();
   if (authMock) {
     const link = `${redirectTo}?token_hash=${mockTokenHash(email)}&type=email`;
     console.log(`[AUTH_MOCK] Anmeldung für ${email}: Code ${MOCK_CODE}, Link ${link}`);
@@ -45,6 +49,7 @@ export type VerifyInput = { tokenHash: string } | { email: string; code: string 
 
 /** Prüft Link oder Code. Liefert die Supabase-Nutzer-ID und die bestätigte E-Mail-Adresse. */
 export async function verifyLogin(input: VerifyInput): Promise<{ userId: string; email: string }> {
+  if (!accountsEnabled()) throw loginOff();
   const invalid = new AppError(400, "Der Link oder Code ist ungültig oder abgelaufen. Fordere einfach einen neuen an.");
   if (authMock) {
     const email = "tokenHash" in input ? mockEmailFrom(input.tokenHash) : input.code === MOCK_CODE ? input.email : null;

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AbspannClient } from "@/components/AbspannClient";
+import { accountsEnabled } from "@/lib/server/db";
 import { Brand } from "@/components/Brand";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { MESSAGES } from "@/lib/i18n/messages";
@@ -20,9 +21,11 @@ export default async function AbspannPage() {
           <Link href="/fernseher" className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text">
             {t.common.tv}
           </Link>
-          <Link href="/konto" className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text">
-            {t.common.account}
-          </Link>
+          {accountsEnabled() && (
+            <Link href="/konto" className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text">
+              {t.common.account}
+            </Link>
+          )}
           <Link href="/" className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text">
             {t.common.newRound}
           </Link>
@@ -33,7 +36,7 @@ export default async function AbspannPage() {
         <h1 className="text-5xl">{t.abspann.title}</h1>
         <p className="mt-2 text-muted">{t.abspann.intro}</p>
       </div>
-      <AbspannClient />
+      <AbspannClient accounts={accountsEnabled()} />
     </main>
   );
 }

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { accountsEnabled } from "@/lib/server/db";
 import { Brand } from "@/components/Brand";
 import { KontoClient } from "@/components/KontoClient";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -11,6 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function KontoPage() {
+  // Beim Self-Hosten (MariaDB/SQLite) gibt es keine Konten
+  if (!accountsEnabled()) notFound();
   const t = MESSAGES[await pageLocale()];
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-5">

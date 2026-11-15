@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { cookieBase } from "./cookie-opts";
-import { db } from "./db";
+import { accountsEnabled, db, upsert } from "./db";
 import { env } from "./env";
 import { hashSecret, newSecret } from "./tokens";
 
@@ -17,39 +17,30 @@ export type Account = { id: string; email: string; favorites: Favorites };
 
 /** Konto anlegen oder E-Mail aktualisieren, neue Sitzung starten und Cookie setzen. */
 export async function startAccountSession(userId: string, email: string): Promise<void> {
-  const { error } = await db().from("accounts").upsert({ id: userId, email }, { onConflict: "id" });
-  if (error) throw error;
+  await upsert("accounts", { id: userId, email }, ["id"]);
   const secret = newSecret();
   const expires = new Date(Date.now() + SESSION_DAYS * 86400_000);
-  const { error: sErr } = await db().from("account_sessions").insert({
-    token_hash: hashSecret(secret, env().APP_SECRET),
-    account_id: userId,
-    expires_at: expires.toISOString(),
-  });
-  if (sErr) throw sErr;
+  await db()
+    .insertInto("account_sessions")
+    .values({ token_hash: hashSecret(secret, env().APP_SECRET), account_id: userId, expires_at: expires.toISOString() })
+    .execute();
   // Alte, abgelaufene Sitzungen dieses Kontos gleich mit aufräumen.
-  await db().from("account_sessions").delete().eq("account_id", userId).lt("expires_at", new Date().toISOString());
+  await db().deleteFrom("account_sessions").where("account_id", "=", userId).where("expires_at", "<", new Date().toISOString()).execute();
   (await cookies()).set(ACCOUNT_COOKIE, secret, { ...cookieBase, maxAge: SESSION_DAYS * 86400 });
 }
 
 /** Das angemeldete Konto dieses Browsers, oder null. */
 export async function currentAccount(): Promise<Account | null> {
+  if (!accountsEnabled()) return null;
   const secret = (await cookies()).get(ACCOUNT_COOKIE)?.value;
   if (!secret || secret.length > 100) return null;
-  const { data, error } = await db()
-    .from("account_sessions")
-    .select("account_id, expires_at")
-    .eq("token_hash", hashSecret(secret, env().APP_SECRET))
-    .gt("expires_at", new Date().toISOString())
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  const { data: acc, error: aErr } = await db()
-    .from("accounts")
-    .select("id, email, favorite_provider_ids, favorite_other")
-    .eq("id", data.account_id)
-    .maybeSingle();
-  if (aErr) throw aErr;
+  const acc = await db()
+    .selectFrom("account_sessions as s")
+    .innerJoin("accounts as a", "a.id", "s.account_id")
+    .select(["a.id", "a.email", "a.favorite_provider_ids", "a.favorite_other"])
+    .where("s.token_hash", "=", hashSecret(secret, env().APP_SECRET))
+    .where("s.expires_at", ">", new Date().toISOString())
+    .executeTakeFirst();
   if (!acc) return null;
   return { id: acc.id, email: acc.email, favorites: { ids: acc.favorite_provider_ids ?? [], other: acc.favorite_other } };
 }
@@ -59,8 +50,7 @@ export async function endAccountSession(): Promise<void> {
   const jar = await cookies();
   const secret = jar.get(ACCOUNT_COOKIE)?.value;
   if (secret && secret.length <= 100) {
-    const { error } = await db().from("account_sessions").delete().eq("token_hash", hashSecret(secret, env().APP_SECRET));
-    if (error) throw error;
+    await db().deleteFrom("account_sessions").where("token_hash", "=", hashSecret(secret, env().APP_SECRET)).execute();
   }
   jar.delete({ name: ACCOUNT_COOKIE, path: "/" });
   jar.delete({ name: CREW_SELECT_COOKIE, path: "/" });
@@ -68,17 +58,12 @@ export async function endAccountSession(): Promise<void> {
 
 /** Überall abmelden: alle Sitzungen des Kontos löschen. */
 export async function endAllSessions(accountId: string): Promise<void> {
-  const { error } = await db().from("account_sessions").delete().eq("account_id", accountId);
-  if (error) throw error;
+  await db().deleteFrom("account_sessions").where("account_id", "=", accountId).execute();
   await endAccountSession();
 }
 
 export async function saveFavorites(accountId: string, f: Favorites): Promise<void> {
-  const { error } = await db()
-    .from("accounts")
-    .update({ favorite_provider_ids: f.ids, favorite_other: f.other })
-    .eq("id", accountId);
-  if (error) throw error;
+  await db().updateTable("accounts").set({ favorite_provider_ids: f.ids, favorite_other: f.other }).where("id", "=", accountId).execute();
 }
 
 /** Favoriten vom Gerät mit denen im Konto zusammenführen (nichts geht verloren). */
@@ -90,14 +75,13 @@ export type AccountCrew = { id: string; name: string };
 
 /** Crews des Kontos, zuletzt benutzte zuerst. */
 export async function accountCrews(accountId: string): Promise<AccountCrew[]> {
-  const { data, error } = await db()
-    .from("crews")
-    .select("id, name")
-    .eq("account_id", accountId)
-    .order("last_used_at", { ascending: false })
-    .limit(MAX_CREWS_PER_ACCOUNT);
-  if (error) throw error;
-  return data ?? [];
+  return db()
+    .selectFrom("crews")
+    .select(["id", "name"])
+    .where("account_id", "=", accountId)
+    .orderBy("last_used_at", "desc")
+    .limit(MAX_CREWS_PER_ACCOUNT)
+    .execute();
 }
 
 export async function selectCrew(crewId: string): Promise<void> {

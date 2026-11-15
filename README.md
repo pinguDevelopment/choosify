@@ -19,13 +19,27 @@ Die Oberfläche gibt es auf Deutsch und Englisch (Sprachauswahl oben auf jeder S
 ## Technik
 
 - Next.js 16 (App Router) + Tailwind CSS 4
-- Supabase (Postgres + Realtime)
+- Datenbank wählbar: Supabase (Standard, mit Mail-Login), MariaDB/MySQL oder SQLite (Self-Hosting, ohne Login).
+  Alle Zugriffe laufen über [Kysely](https://kysely.dev), derselbe Code für alle Datenbanken (`src/lib/server/db.ts`).
+- Live-Stand per regelmäßigem Nachfragen (kein Realtime nötig)
 - TMDB für Filmdaten, Poster und Streaming-Anbieter
+
+## Datenbank wählen
+
+| `DATABASE` | Wofür | Login per Mail | Tabellen anlegen |
+| --- | --- | --- | --- |
+| `supabase` (Standard) | Vercel | ja | SQL aus `supabase/` im Supabase SQL Editor |
+| `mariadb` / `mysql` | eigener Server | nein | macht die App selbst |
+| `sqlite` | kleiner Self-Host (eine Datei) | nein | macht die App selbst |
+| `postgres` | eigener Postgres-Server | nein | `supabase/setup-alles.sql` einmal ausführen |
+
+Verbindung über `DATABASE_URL` (bei SQLite stattdessen `SQLITE_FILE`). Selbst hosten mit Docker:
+siehe [docs/self-hosting.md](docs/self-hosting.md).
 
 ## Sicherheitsmodell (Kurzfassung)
 
-- Browser sprechen nie direkt mit der Datenbank. Alles läuft über die Next.js-API mit dem
-  Service-Role-Key, der nur auf dem Server liegt.
+- Browser sprechen nie direkt mit der Datenbank. Alles läuft über die Next.js-API, die
+  Zugangsdaten zur Datenbank liegen nur auf dem Server.
 - RLS ist auf allen Tabellen aktiv, ohne Policies für Client-Rollen.
 - Teilnehmer, Hosts und Crews werden über zufällige 256-Bit-Tokens in httpOnly-Cookies
   erkannt. In der DB liegt nur der HMAC.
@@ -40,7 +54,8 @@ cp .env.example .env.local   # Werte eintragen
 npm run dev
 ```
 
-Datenbank: Migrationen in `supabase/migrations/` im Supabase-Dashboard (SQL Editor) ausführen
+Datenbank: Am einfachsten lokal `DATABASE=sqlite` in `.env.local`, dann legt die App alles selbst an.
+Mit Supabase: Migrationen in `supabase/migrations/` im Supabase-Dashboard (SQL Editor) ausführen
 oder mit `npx supabase db push`.
 
 ## Checks

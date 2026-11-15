@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
+// Self-Hosting ohne HTTPS (z. B. im Heimnetz unter http://192.168.x.x:3000): Browser sollen dann
+// nicht auf https umleiten. Wirkt beim Bauen (das Docker-Image setzt es standardmäßig).
+const allowHttp = process.env.ALLOW_HTTP === "1";
 
 // Content-Security-Policy: nur eigene Skripte, Bilder nur von uns und TMDB,
 // Netzwerk nur zur eigenen API, kein Einbetten in fremde Seiten.
@@ -19,7 +22,7 @@ const csp = [
   "form-action 'self'",
   "frame-ancestors 'none'",
   "manifest-src 'self'",
-  ...(isDev ? [] : ["upgrade-insecure-requests"]),
+  ...(isDev || allowHttp ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
 
 const securityHeaders = [
@@ -29,13 +32,17 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  ...(allowHttp ? [] : [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }]),
 ];
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  // Datenbank-Treiber nicht bündeln (better-sqlite3 lädt db.ts selbst zur Laufzeit)
+  serverExternalPackages: ["mysql2", "pg"],
+  // Für das Docker-Image: eigenständiger Server ohne komplette node_modules
+  ...(process.env.STANDALONE === "1" ? { output: "standalone" as const } : {}),
   // Nur für "npm run dev": erlaubt Zugriff über VS-Code-Port-Forwarding (Dev Tunnels) und das eigene WLAN.
   allowedDevOrigins: ["**.devtunnels.ms", "10.*.*.*", "192.168.*.*"],
   images: {

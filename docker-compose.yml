@@ -1,0 +1,32 @@
+# Cinemood selbst hosten: `docker compose up -d`, danach http://<IP-des-Rechners>:3000 öffnen.
+# Vorher eine Datei .env anlegen (siehe .env.example): TMDB_READ_TOKEN und APP_SECRET reichen.
+# Anleitung: docs/self-hosting.md
+
+services:
+  cinemood:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      DATABASE: sqlite
+    volumes:
+      - cinemood-data:/data
+
+  # Statt SQLite lieber MariaDB? Diesen Block einkommentieren, oben DATABASE: mariadb setzen
+  # und DATABASE_URL: mysql://cinemood:geheim@mariadb:3306/cinemood ergänzen.
+  # mariadb:
+  #   image: mariadb:11
+  #   restart: unless-stopped
+  #   environment:
+  #     MARIADB_DATABASE: cinemood
+  #     MARIADB_USER: cinemood
+  #     MARIADB_PASSWORD: geheim
+  #     MARIADB_RANDOM_ROOT_PASSWORD: "1"
+  #   volumes:
+  #     - mariadb-data:/var/lib/mysql
+
+volumes:
+  cinemood-data:
+  # mariadb-data:

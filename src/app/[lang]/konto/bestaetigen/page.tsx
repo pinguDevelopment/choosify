@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { notFound } from "next/navigation";
+import { accountsEnabled } from "@/lib/server/db";
 import { Brand } from "@/components/Brand";
 import { ConfirmLogin } from "@/components/ConfirmLogin";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -17,6 +19,7 @@ async function Confirm({ searchParams }: { searchParams: Promise<Record<string, 
 }
 
 export default async function ConfirmPage({ searchParams }: PageProps<"/[lang]/konto/bestaetigen">) {
+  if (!accountsEnabled()) notFound();
   const t = MESSAGES[await pageLocale()];
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-5">
