@@ -1,6 +1,7 @@
 package app.cinemood.tv;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
@@ -12,6 +13,7 @@ import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -27,16 +29,23 @@ import android.widget.Toast;
  * Am Fernseher muss man nichts bedienen: Die Seite zeigt einen Code, der Host gibt ihn am Handy ein.
  *
  * Fernbedienung:
- *  - Menü-Taste oder OK lange gedrückt halten: Server-Adresse ändern
+ *  - Menü-Taste oder OK lange gedrückt halten: Menü (Adresse ändern, neu laden, Updates)
  *  - Zurück: zweimal drücken beendet die App
  */
 public class MainActivity extends Activity {
     private static final long RETRY_MS = 10_000;
     private static final long BACK_EXIT_MS = 2_000;
     private static final long LONG_PRESS_MS = 1_000;
+    /** Kommt die Seite so lange nicht fertig, gilt sie als hängengeblieben. */
+    private static final long LOAD_TIMEOUT_MS = 30_000;
+    /** Update-Prüfung kurz nach dem Start, damit erst die Seite lädt. */
+    private static final long UPDATE_DELAY_MS = 8_000;
+    private static final int REQUEST_SETTINGS = 1;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable retry = this::reload;
+    private final Runnable loadTimeout = () -> showError(getString(R.string.error_timeout));
+    private final Runnable updateCheck = () -> Updater.check(this, false);
 
     private WebView web;
     private View errorView;
@@ -46,7 +55,6 @@ public class MainActivity extends Activity {
     private long lastBack;
     private boolean longPressHandled;
 
-    @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -62,6 +70,16 @@ public class MainActivity extends Activity {
         retryButton.setOnClickListener(v -> reload());
         settingsButton.setOnClickListener(v -> openSettings());
 
+        setupWebView();
+
+        // Immer frisch laden statt den alten Zustand wiederherzustellen: Nach einem Neustart blieb
+        // die Seite sonst leer, wenn sich die Adresse in der Zwischenzeit geändert hatte.
+        load();
+        handler.postDelayed(updateCheck, UPDATE_DELAY_MS);
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private void setupWebView() {
         web.setBackgroundColor(Color.parseColor("#2a0a14"));
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -75,13 +93,6 @@ public class MainActivity extends Activity {
             s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         }
         web.setWebViewClient(new Client());
-
-        if (savedInstanceState != null) {
-            web.restoreState(savedInstanceState);
-            loadedUrl = Prefs.tvUrl(this);
-        } else {
-            load();
-        }
     }
 
     @Override
@@ -109,9 +120,9 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        web.saveState(outState);
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_SETTINGS && resultCode == SettingsActivity.RESULT_RELOAD) load();
     }
 
     @Override
@@ -123,6 +134,8 @@ public class MainActivity extends Activity {
     private void load() {
         loadedUrl = Prefs.tvUrl(this);
         handler.removeCallbacks(retry);
+        handler.removeCallbacks(loadTimeout);
+        handler.postDelayed(loadTimeout, LOAD_TIMEOUT_MS);
         mainFrameFailed = false;
         errorView.setVisibility(View.GONE);
         web.setVisibility(View.VISIBLE);
@@ -134,11 +147,14 @@ public class MainActivity extends Activity {
         if (current == null || mainFrameFailed) load();
         else {
             mainFrameFailed = false;
+            handler.removeCallbacks(loadTimeout);
+            handler.postDelayed(loadTimeout, LOAD_TIMEOUT_MS);
             web.reload();
         }
     }
 
     private void showError(String detail) {
+        handler.removeCallbacks(loadTimeout);
         mainFrameFailed = true;
         errorText.setText(getString(R.string.error_text, Prefs.baseUrl(this), detail));
         errorView.setVisibility(View.VISIBLE);
@@ -150,7 +166,7 @@ public class MainActivity extends Activity {
     }
 
     private void openSettings() {
-        startActivity(new Intent(this, SettingsActivity.class));
+        startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_SETTINGS);
     }
 
     @SuppressWarnings("deprecation")
@@ -233,6 +249,7 @@ public class MainActivity extends Activity {
 
         @Override
         public void onPageFinished(WebView view, String url) {
+            handler.removeCallbacks(loadTimeout);
             if (!mainFrameFailed) {
                 errorView.setVisibility(View.GONE);
                 web.setVisibility(View.VISIBLE);
@@ -253,6 +270,19 @@ public class MainActivity extends Activity {
         public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
             // Für Android 5 (dort gibt es die neue Variante oben noch nicht)
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) showError(description);
+        }
+
+        /**
+         * Der Teil von Android, der die Seite darstellt, ist abgestürzt oder wurde wegen Speichermangel
+         * beendet (passiert auf kleinen Sticks). Ohne diese Methode beendet Android die ganze App.
+         * Wir bauen die Ansicht einfach neu auf.
+         */
+        @TargetApi(Build.VERSION_CODES.O)
+        @Override
+        public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+            handler.removeCallbacksAndMessages(null);
+            recreate();
+            return true;
         }
 
         @Override

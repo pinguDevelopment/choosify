@@ -6,7 +6,7 @@
     <string name="retry">Try again</string>
     <string name="change_address">Change address</string>
     <string name="back_again">Press Back again to exit</string>
-    <string name="settings_title">Server address</string>
+    <string name="settings_title">Settings</string>
     <string name="settings_hint">The address where Cinemood runs. The TV opens the /tv page there.\nDefault: %1$s</string>
     <string name="settings_placeholder">e.g. movies.example.com</string>
     <string name="settings_save">Save</string>
@@ -16,4 +16,21 @@
     <string name="settings_invalid">That\'s not a valid address</string>
     <string name="settings_keys">Open this screen any time with the Menu button or by holding OK for about a second.</string>
     <string name="settings_version">Version %1$s</string>
+    <string name="settings_reload">Reload page</string>
+    <string name="settings_check_update">Check for updates</string>
+    <string name="error_timeout">The page is taking too long to load.</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_failed">Couldn\'t check for updates. Is the TV online?</string>
+    <string name="update_none">You\'re up to date (version %1$s).</string>
+    <string name="update_title">Update available</string>
+    <string name="update_text">Version %1$s of Cinemood TV is available (installed: %2$s). Install now? Your settings are kept.</string>
+    <string name="update_install">Install</string>
+    <string name="update_later">Later</string>
+    <string name="update_downloading">Downloading… %1$d %%</string>
+    <string name="update_download_failed">The update couldn\'t be downloaded. Please try again later.</string>
+    <string name="update_install_failed">The update couldn\'t be installed. %1$s</string>
+    <string name="update_permission_title">Allow installing updates</string>
+    <string name="update_permission_text">To install updates, Cinemood needs permission to install apps once. Open the setting now, allow Cinemood, then choose Install again.</string>
+    <string name="update_permission_open">Open setting</string>
+    <string name="update_permission_manual">Open the TV settings and allow Cinemood to install apps from unknown sources. On Fire TV: My Fire TV → Developer options → Install unknown apps → Cinemood. Then choose Install again.</string>
 </resources>
