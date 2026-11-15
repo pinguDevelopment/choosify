@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Nur lokal, nicht ins Repo
+AGENTS.md
+CLAUDE.md
+SECURITY.md
