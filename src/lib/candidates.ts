@@ -30,19 +30,57 @@ export type DiscoverOptions = {
   genreIds: number[];
   page: number;
   bucket?: Bucket;
+  /** Erscheinungsjahr von/bis (vom Host gewählt), jeweils einschließlich */
+  years?: YearRange;
   /** für Tests; sonst heute */
   today?: Date;
 };
+
+/** Zeitraum fürs Erscheinungsjahr. null = keine Grenze. */
+export type YearRange = { from: number | null; to: number | null };
+export const NO_YEARS: YearRange = { from: null, to: null };
+export const YEAR_MIN = 1900;
+export const YEAR_MAX = 2100;
+/** Bis hierhin zählt ein Film als Klassiker (eigener Topf), wenn der Zeitraum das zulässt */
+const CLASSIC_UNTIL = 2005;
+
+/** Grenzen fürs Erscheinungsjahr säubern: ganze Jahre, sinnvoller Bereich, von ≤ bis. */
+export function normalizeYears(y: Partial<YearRange> | null | undefined): YearRange {
+  const clean = (v: unknown) =>
+    typeof v === "number" && Number.isInteger(v) && v >= YEAR_MIN && v <= YEAR_MAX ? v : null;
+  let from = clean(y?.from);
+  let to = clean(y?.to);
+  if (from != null && to != null && from > to) [from, to] = [to, from];
+  return { from, to };
+}
+
+/**
+ * Bis zu welchem Jahr der Klassiker-Topf reicht. Liegt 2005 außerhalb des gewählten Zeitraums
+ * (z. B. "ab 2010"), nimmt der Topf die ältere Hälfte des Zeitraums, damit die Mischung bleibt.
+ */
+export function classicUntil(years: YearRange, currentYear: number): number {
+  const from = years.from ?? YEAR_MIN;
+  const to = Math.min(years.to ?? currentYear, currentYear);
+  if (from <= CLASSIC_UNTIL && CLASSIC_UNTIL <= to) return CLASSIC_UNTIL;
+  return Math.max(from, Math.floor((from + to) / 2));
+}
 
 /** Filme, die erst seit kurzem draußen sind, laufen oft nur im Kino. */
 export const CINEMA_DAYS = 60;
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+const minDate = (a: string, b: string) => (a < b ? a : b);
 
 /** Baut die Query für TMDB /discover/movie. "|" bedeutet ODER bei TMDB. */
 export function discoverParams(o: DiscoverOptions): URLSearchParams {
   const bucket = o.bucket ?? "popular";
-  const latest = new Date((o.today ?? new Date()).getTime() - CINEMA_DAYS * 86400_000);
+  const today = o.today ?? new Date();
+  const latest = new Date(today.getTime() - CINEMA_DAYS * 86400_000);
+  const years = normalizeYears(o.years);
+  // Obergrenze: Kino-Sperre, Klassiker-Grenze und "bis"-Jahr, die früheste gewinnt
+  let lte = isoDate(latest);
+  if (bucket === "classic") lte = minDate(lte, `${classicUntil(years, today.getUTCFullYear())}-12-31`);
+  if (years.to != null) lte = minDate(lte, `${years.to}-12-31`);
   const p = new URLSearchParams({
     language: "de-DE",
     region: o.region,
@@ -50,9 +88,10 @@ export function discoverParams(o: DiscoverOptions): URLSearchParams {
     sort_by: bucket === "acclaimed" || bucket === "gem" ? "vote_average.desc" : "popularity.desc",
     include_adult: "false",
     "vote_count.gte": { popular: "200", acclaimed: "1500", classic: "300", gem: "80" }[bucket],
-    "primary_release_date.lte": bucket === "classic" ? "2005-12-31" : isoDate(latest),
+    "primary_release_date.lte": lte,
     page: String(o.page),
   });
+  if (years.from != null) p.set("primary_release_date.gte", `${years.from}-01-01`);
   if (bucket === "gem") {
     p.set("vote_count.lte", "1500");
     p.set("vote_average.gte", "6.8");

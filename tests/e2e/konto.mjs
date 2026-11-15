@@ -23,8 +23,9 @@ const json = (page, path, method = "GET", body) =>
 
 async function createRoom(page, name) {
   await page.goto(BASE);
-  await page.getByPlaceholder("z.B. Lena").fill(name);
+  // Erst warten, bis die Seite interaktiv ist (Dienste geladen), sonst geht der Name beim Hydrieren verloren
   await page.getByRole("button", { name: "Netflix", exact: true }).waitFor();
+  await page.getByPlaceholder("z.B. Lena").fill(name);
   await page.getByRole("button", { name: "Runde erstellen" }).click();
   await page.waitForURL(/\/r\/[A-Z0-9]{10}$/);
 }

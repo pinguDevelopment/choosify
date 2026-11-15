@@ -154,6 +154,9 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
               {ready < state.participants.length && (
                 <p className="text-center text-sm text-muted">{t.lobby.startAnyway}</p>
               )}
+              {(state.years?.from != null || state.years?.to != null) && (
+                <p className="text-center text-sm text-muted">{t.lobby.years(t.years.summary(state.years.from, state.years.to))}</p>
+              )}
             </>
           ) : (
             <p className="text-center text-muted">{t.lobby.waiting}</p>

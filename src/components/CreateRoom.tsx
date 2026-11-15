@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useLayoutEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { ProviderPicker } from "@/components/ProviderPicker";
+import { YearFilter } from "@/components/YearFilter";
+import { NO_YEARS, type YearRange } from "@/lib/candidates";
 import { useT } from "@/components/I18nProvider";
 
 export function CreateRoom() {
@@ -12,6 +14,7 @@ export function CreateRoom() {
   const [name, setName] = useState("");
   const [picked, setPicked] = useState<number[]>([]);
   const [anySource, setAnySource] = useState(false);
+  const [years, setYears] = useState<YearRange>(NO_YEARS);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState<string | null>(null);
@@ -27,7 +30,7 @@ export function CreateRoom() {
     setError(null);
     try {
       const { code } = await api<{ code: string }>("/api/rooms", {
-        body: { hostName: name, region: "DE", providerIds: picked, anySource },
+        body: { hostName: name, region: "DE", providerIds: picked, anySource, years },
       });
       router.push(`/r/${code}`);
     } catch (err) {
@@ -69,6 +72,7 @@ export function CreateRoom() {
         onAccount={setLoggedIn}
         onError={setError}
       />
+      <YearFilter value={years} onChange={setYears} />
       {error && <p className="text-sm text-no">{error}</p>}
       <button className="btn-primary" disabled={busy || !name.trim()}>
         {busy ? t.create.creating : t.create.create}

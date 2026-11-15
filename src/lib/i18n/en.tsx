@@ -51,6 +51,20 @@ export const en: Messages = {
     creating: "Creating round …",
     create: "Create round",
   },
+  years: {
+    title: "From which era?",
+    hint: "Only movies released in this period.",
+    any: "Any",
+    since: (y: number) => `${y} or later`,
+    before: (y: number) => `before ${y}`,
+    custom: "Custom range",
+    from: "from",
+    to: "to",
+    fromPlaceholder: "e.g. 1990",
+    toPlaceholder: "open",
+    summary: (from: number | null, to: number | null) =>
+      from != null && to != null ? (from === to ? `${from}` : `${from} to ${to}`) : from != null ? `${from} or later` : to != null ? `up to ${to}` : "all years",
+  },
   joinByCode: {
     title: "Got invited?",
     hint: "Scan the host’s QR code or type in the code from the ticket.",
@@ -106,6 +120,7 @@ export const en: Messages = {
     button: "Join",
   },
   lobby: {
+    years: (range: string) => `Release years: ${range}`,
     invite: "Bring in your friends",
     inviteHint: (n: number) => `${n} in the theater · let them scan the QR`,
     scanAll: "Everyone scan this",
@@ -212,8 +227,10 @@ export const en: Messages = {
     no: "No",
     maybe: "Fine",
     yes: "Yes",
-    hintMobile: "Swipe: ← No · ↑ Fine · → Yes",
-    hintDesktop: "On a laptop: ← No, ↑ Fine, → Yes. Backspace undoes.",
+    hintMobile: "Swipe: ← No · ↑ Fine · → Yes · Tap: more info",
+    hintDesktop: "On a laptop: ← No, ↑ Fine, → Yes. Backspace undoes, I or a click on the card shows more info.",
+    moreInfo: "More info",
+    moreInfoAbout: (title: string) => `More info about ${title}`,
     doneTitle: "You’re done!",
     doneText: "As soon as the others are done, the winner is set. The standings update live.",
     progress: "Who’s how far?",
@@ -228,6 +245,21 @@ export const en: Messages = {
       const m = min % 60;
       return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
     },
+  },
+  details: {
+    close: "Close",
+    loading: "Loading details …",
+    failed: "More details aren’t available right now.",
+    originalTitle: (t: string) => `Original title: ${t}`,
+    votes: (n: number) => `${n.toLocaleString("en-US")} ${n === 1 ? "vote" : "votes"} on TMDB`,
+    director: "Directed by",
+    cast: "Cast",
+    as: (role: string) => `as ${role}`,
+    trailer: "Trailer",
+    trailerSearch: "Search trailer",
+    imdb: "IMDb",
+    opensNewTab: "opens in a new tab",
+    voteHint: "Vote right here:",
   },
   abspann: {
     title: "Credits",

@@ -10,12 +10,20 @@ export const nameSchema = z
 
 export const tmdbIdSchema = z.number().int().positive().max(100_000_000);
 
+// Erscheinungsjahr von/bis (jeweils optional), z. B. "ab 2000" = { from: 2000, to: null }
+const yearSchema = z.number().int().min(1900).max(2100).nullable().default(null);
+export const yearsSchema = z
+  .object({ from: yearSchema, to: yearSchema })
+  .refine((y) => y.from == null || y.to == null || y.from <= y.to, "von nach bis")
+  .default({ from: null, to: null });
+
 export const createRoomSchema = z.object({
   hostName: nameSchema,
   region: z.string().regex(/^[A-Z]{2}$/).default("DE"),
   providerIds: z.array(z.number().int().positive()).max(30).default([]),
   // "Sonstige / eigene Quelle": auch Filme, die bei keinem gewählten Dienst laufen
   anySource: z.boolean().default(false),
+  years: yearsSchema,
   crewName: nameSchema.optional(),
 });
 

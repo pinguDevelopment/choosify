@@ -1,4 +1,4 @@
--- Cinemood: bringt eine bestehende Datenbank auf den aktuellen Stand (Stand 15.11., mit Konten, Bewertungen, Fernseher-Kopplung und Mehrsprachigkeit).
+-- Cinemood: bringt eine bestehende Datenbank auf den aktuellen Stand (Stand 15.11., mit Konten, Bewertungen, Fernseher-Kopplung, Mehrsprachigkeit und Jahresfilter).
 -- Darf beliebig oft ausgeführt werden, egal welche Updates schon gelaufen sind.
 -- Im Supabase-Dashboard unter "SQL Editor" komplett einfügen und auf "Run" klicken.
 -- Ganz unten steht eine Prüfung: Sie listet alles, was noch fehlt (leeres Ergebnis = alles da).
@@ -229,6 +229,17 @@ alter table abspann add column if not exists title_en text;
 alter table abspann drop constraint if exists abspann_title_en_check;
 alter table abspann add constraint abspann_title_en_check check (char_length(title_en) <= 300);
 
+-- 5e) Erscheinungsjahr-Filter: Der Host legt beim Erstellen der Runde fest, aus welchem Zeitraum
+-- die Filme kommen (z. B. "ab 2000" oder 1980 bis 1999). null = keine Grenze.
+alter table rooms add column if not exists year_from smallint;
+alter table rooms add column if not exists year_to smallint;
+alter table rooms drop constraint if exists rooms_years_check;
+alter table rooms add constraint rooms_years_check check (
+  (year_from is null or year_from between 1900 and 2100)
+  and (year_to is null or year_to between 1900 and 2100)
+  and (year_from is null or year_to is null or year_from <= year_to)
+);
+
 -- 6) Browser-Rollen haben weiterhin keinen Zugriff (alles läuft über den Server)
 do $$
 begin
@@ -250,7 +261,8 @@ select fehlt from (
                ('crews','account_id'), ('crews','last_used_at'), ('room_movies','tags'),
                ('abspann','genre_ids'), ('abspann','tags'), ('ratings','stars'),
                ('tv_pairings','code'), ('tv_pairings','room_id'),
-               ('room_movies','title_en'), ('room_movies','overview_en'), ('abspann','title_en')) need(t, c)
+               ('room_movies','title_en'), ('room_movies','overview_en'), ('abspann','title_en'),
+               ('rooms','year_from'), ('rooms','year_to')) need(t, c)
   where not exists (select 1 from information_schema.columns
                     where table_schema = 'public' and table_name = need.t and column_name = need.c)
   union all

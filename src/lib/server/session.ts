@@ -28,6 +28,9 @@ export type Room = {
   runoff_ids: number[] | null;
   winner_to_abspann: boolean;
   any_source: boolean;
+  /** Erscheinungsjahr von/bis, null = offen */
+  year_from: number | null;
+  year_to: number | null;
   expires_at: string;
 };
 
@@ -44,7 +47,7 @@ export async function loadRoom(code: string): Promise<Room | null> {
   if (!isRoomCode(code)) return null;
   const { data, error } = await db()
     .from("rooms")
-    .select("id, code, crew_id, region, provider_ids, status, winner_tmdb_id, runoff_ids, winner_to_abspann, any_source, expires_at")
+    .select("id, code, crew_id, region, provider_ids, status, winner_tmdb_id, runoff_ids, winner_to_abspann, any_source, year_from, year_to, expires_at")
     .eq("code", code)
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();

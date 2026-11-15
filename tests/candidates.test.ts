@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { discoverParams, featuredRank, franchiseKey, genreDemand, mixBuckets, personalOrder, pickCandidates, randomPage, releaseYear, streamableOn } from "../src/lib/candidates.ts";
+import { classicUntil, discoverParams, featuredRank, normalizeYears, franchiseKey, genreDemand, mixBuckets, personalOrder, pickCandidates, randomPage, releaseYear, streamableOn } from "../src/lib/candidates.ts";
 
 test("discoverParams verknüpft Anbieter und Genres mit ODER", () => {
   const p = discoverParams({ region: "DE", providerIds: [8, 9], genreIds: [28, 35], page: 2 });
@@ -132,4 +132,38 @@ test("featuredRank erkennt bekannte Dienste, aber keine Varianten", () => {
   assert.equal(featuredRank("Apple TV", 2), -1, "Apple-Store zum Leihen ist kein Abo");
   assert.equal(featuredRank("Netflix Standard with Ads"), -1);
   assert.equal(featuredRank("MUBI Amazon Channel"), -1);
+});
+
+test("Erscheinungsjahr: von/bis landen als Datumsgrenzen bei TMDB", () => {
+  const today = new Date("2026-11-15T12:00:00Z");
+  const p = discoverParams({ region: "DE", providerIds: [], genreIds: [], page: 1, years: { from: 2000, to: 2009 }, today });
+  assert.equal(p.get("primary_release_date.gte"), "2000-01-01");
+  assert.equal(p.get("primary_release_date.lte"), "2009-12-31");
+  // ohne Zeitraum keine Untergrenze, Obergrenze bleibt die Kino-Sperre
+  const q = discoverParams({ region: "DE", providerIds: [], genreIds: [], page: 1, today });
+  assert.equal(q.has("primary_release_date.gte"), false);
+  assert.equal(q.get("primary_release_date.lte"), "2026-09-16");
+});
+
+test("Erscheinungsjahr: Kino-Sperre gilt auch mit 'bis' in der Zukunft", () => {
+  const today = new Date("2026-11-15T12:00:00Z");
+  const p = discoverParams({ region: "DE", providerIds: [], genreIds: [], page: 1, years: { from: 2020, to: 2030 }, today });
+  assert.equal(p.get("primary_release_date.lte"), "2026-09-16");
+});
+
+test("Klassiker-Topf passt sich dem Zeitraum an", () => {
+  const today = new Date("2026-11-15T12:00:00Z");
+  const classic = (years: { from: number | null; to: number | null }) =>
+    discoverParams({ region: "DE", providerIds: [], genreIds: [], page: 1, bucket: "classic", years, today }).get("primary_release_date.lte");
+  assert.equal(classic({ from: null, to: null }), "2005-12-31");
+  assert.equal(classic({ from: 1980, to: 1995 }), "1987-12-31");
+  // "ab 2010": ältere Hälfte des Zeitraums statt eines leeren Topfs
+  assert.equal(classic({ from: 2010, to: null }), "2018-12-31");
+  assert.equal(classicUntil({ from: 2020, to: 2020 }, 2026), 2020);
+});
+
+test("normalizeYears säubert die Eingabe", () => {
+  assert.deepEqual(normalizeYears({ from: 2010, to: 1990 }), { from: 1990, to: 2010 });
+  assert.deepEqual(normalizeYears({ from: 1800, to: 2000.5 }), { from: null, to: null });
+  assert.deepEqual(normalizeYears(null), { from: null, to: null });
 });

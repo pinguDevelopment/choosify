@@ -36,6 +36,8 @@ export type RoomState = {
   status: "lobby" | "voting" | "runoff" | "done";
   region: string;
   providerIds: number[];
+  /** Erscheinungsjahr von/bis, null = offen */
+  years: { from: number | null; to: number | null };
   me: { name: string; isHost: boolean; genresDone: boolean; genreIds: number[] } | null;
   participants: { name: string; isHost: boolean; genresDone: boolean; voted: number }[];
   movies: Movie[];
