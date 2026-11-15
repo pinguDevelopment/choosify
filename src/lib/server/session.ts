@@ -45,28 +45,26 @@ export type Participant = {
 
 export async function loadRoom(code: string): Promise<Room | null> {
   if (!isRoomCode(code)) return null;
-  const { data, error } = await db()
-    .from("rooms")
-    .select("id, code, crew_id, region, provider_ids, status, winner_tmdb_id, runoff_ids, winner_to_abspann, any_source, year_from, year_to, expires_at")
-    .eq("code", code)
-    .gt("expires_at", new Date().toISOString())
-    .maybeSingle();
-  if (error) throw error;
-  return data as Room | null;
+  const room = await db()
+    .selectFrom("rooms")
+    .select(["id", "code", "crew_id", "region", "provider_ids", "status", "winner_tmdb_id", "runoff_ids", "winner_to_abspann", "any_source", "year_from", "year_to", "expires_at"])
+    .where("code", "=", code)
+    .where("expires_at", ">", new Date().toISOString())
+    .executeTakeFirst();
+  return room ?? null;
 }
 
 /** Der aktuelle Teilnehmer in diesem Raum, erkannt am httpOnly-Cookie. */
 export async function currentParticipant(room: Room): Promise<Participant | null> {
   const secret = (await cookies()).get(participantCookie(room.code))?.value;
   if (!secret || secret.length > 100) return null;
-  const { data, error } = await db()
-    .from("participants")
-    .select("id, room_id, name, is_host, genre_ids, genres_done")
-    .eq("room_id", room.id)
-    .eq("token_hash", hashSecret(secret, env().APP_SECRET))
-    .maybeSingle();
-  if (error) throw error;
-  return data as Participant | null;
+  const me = await db()
+    .selectFrom("participants")
+    .select(["id", "room_id", "name", "is_host", "genre_ids", "genres_done"])
+    .where("room_id", "=", room.id)
+    .where("token_hash", "=", hashSecret(secret, env().APP_SECRET))
+    .executeTakeFirst();
+  return me ?? null;
 }
 
 type DeviceCrew = { id: string; name: string; account_id: string | null };
@@ -77,12 +75,7 @@ export async function deviceCrew(): Promise<DeviceCrew | null> {
   if (!raw || raw.length > 200) return null;
   const [id, secret] = raw.split(".");
   if (!id || !secret || !/^[0-9a-f-]{36}$/.test(id)) return null;
-  const { data, error } = await db()
-    .from("crews")
-    .select("id, name, secret_hash, account_id")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw error;
+  const data = await db().selectFrom("crews").select(["id", "name", "secret_hash", "account_id"]).where("id", "=", id).executeTakeFirst();
   if (!data || !safeEqualHex(data.secret_hash, hashSecret(secret, env().APP_SECRET))) return null;
   return { id: data.id, name: data.name, account_id: data.account_id };
 }

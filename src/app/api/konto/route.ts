@@ -54,8 +54,7 @@ export async function PATCH(req: NextRequest) {
       if (!device || device.account_id) return jsonError(409, "Auf diesem Gerät gibt es keine Crew zum Übernehmen");
       const crews = await accountCrews(account.id);
       if (crews.length >= MAX_CREWS_PER_ACCOUNT) return jsonError(409, "Dein Konto hat schon die maximale Zahl an Crews");
-      const { error } = await db().from("crews").update({ account_id: account.id }).eq("id", device.id).is("account_id", null);
-      if (error) throw error;
+      await db().updateTable("crews").set({ account_id: account.id }).where("id", "=", device.id).where("account_id", "is", null).execute();
       await selectCrew(device.id);
     }
 

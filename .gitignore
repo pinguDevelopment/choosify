@@ -45,3 +45,9 @@ next-env.d.ts
 AGENTS.md
 CLAUDE.md
 SECURITY.md
+
+# SQLite-Datenbank beim lokalen Self-Hosting
+/data/
+*.db
+*.db-shm
+*.db-wal

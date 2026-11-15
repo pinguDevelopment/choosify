@@ -29,12 +29,11 @@ export async function POST(req: NextRequest) {
     await startAccountSession(user.userId, user.email);
     // Favoriten von diesem Gerät ins Konto übernehmen.
     if (input.favorites && (input.favorites.ids.length > 0 || input.favorites.other)) {
-      const { data, error } = await db()
-        .from("accounts")
-        .select("favorite_provider_ids, favorite_other")
-        .eq("id", user.userId)
-        .single();
-      if (error) throw error;
+      const data = await db()
+        .selectFrom("accounts")
+        .select(["favorite_provider_ids", "favorite_other"])
+        .where("id", "=", user.userId)
+        .executeTakeFirstOrThrow();
       await saveFavorites(
         user.userId,
         mergeFavorites({ ids: data.favorite_provider_ids ?? [], other: data.favorite_other }, input.favorites),

@@ -19,7 +19,7 @@ type Taste = { rated: number; likes: string[]; dislikes: string[] };
 type Data = { crew: { name: string } | null; movies: Entry[]; taste: Taste | null };
 type Hit = { tmdbId: number; title: string; poster: string | null; year: number | null };
 
-export function AbspannClient() {
+export function AbspannClient({ accounts = true }: { accounts?: boolean }) {
   const [data, setData] = useState<Data | null>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
@@ -54,13 +54,15 @@ export function AbspannClient() {
         <Link href="/" className="btn-primary mt-4">
           {t.common.startRound}
         </Link>
-        <p className="mt-4 text-sm text-muted">
-          {t.abspann.otherDevice(
-            <Link href="/konto" className="underline underline-offset-4">
-              {t.abspann.signInLink}
-            </Link>,
-          )}
-        </p>
+        {accounts && (
+          <p className="mt-4 text-sm text-muted">
+            {t.abspann.otherDevice(
+              <Link href="/konto" className="underline underline-offset-4">
+                {t.abspann.signInLink}
+              </Link>,
+            )}
+          </p>
+        )}
       </div>
     );
   }

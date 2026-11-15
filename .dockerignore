@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+data
+*.db
+*.db-*
+.env*
+!.env.example
+AGENTS.md
+CLAUDE.md
+SECURITY.md
+tests

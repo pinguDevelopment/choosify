@@ -5,6 +5,7 @@ import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { LoginLinkFallback } from "@/components/LoginLinkFallback";
 import { MESSAGES } from "@/lib/i18n/messages";
 import { APP_NAME, pageLocale } from "@/lib/i18n/page";
+import { accountsEnabled } from "@/lib/server/db";
 
 export default async function Home() {
   const t = MESSAGES[await pageLocale()];
@@ -23,9 +24,11 @@ export default async function Home() {
       <Link href="/abspann" className="text-muted underline decoration-line underline-offset-4 hover:text-text">
         {t.home.abspannLink}
       </Link>
-      <Link href="/konto" className="-mt-7 text-muted underline decoration-line underline-offset-4 hover:text-text">
-        {t.home.accountLink}
-      </Link>
+      {accountsEnabled() && (
+        <Link href="/konto" className="-mt-7 text-muted underline decoration-line underline-offset-4 hover:text-text">
+          {t.home.accountLink}
+        </Link>
+      )}
       <Link href="/fernseher" className="-mt-7 text-muted underline decoration-line underline-offset-4 hover:text-text">
         {t.home.tvLink}
       </Link>

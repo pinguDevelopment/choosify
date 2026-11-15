@@ -36,3 +36,46 @@ export function runoffResult(candidates: number[], picks: number[]) {
   const stillTied = candidates.filter((id) => tally[id] === best).length > 1;
   return { winner, tally, stillTied };
 }
+
+export type RankMovie = { tmdbId: number; position: number; voteAverage: number | null };
+export type RankVote = { tmdbId: number; choice: number };
+
+/**
+ * Rangliste einer Runde (früher die SQL-Funktion room_ranking, jetzt für alle Datenbanken gleich):
+ * zuerst "alle wollen", dann "alle sind dabei" (niemand Nein), dann Punkte (Ja = 2, wäre ok = 1),
+ * dann weniger Neins, dann TMDB-Bewertung. Filme ganz ohne Ja/ok fehlen.
+ */
+export function rankMovies<M extends RankMovie>(movies: M[], votes: RankVote[], participants: number) {
+  const tally = new Map<number, { likes: number; maybes: number; dislikes: number }>();
+  for (const v of votes) {
+    const t = tally.get(v.tmdbId) ?? { likes: 0, maybes: 0, dislikes: 0 };
+    if (v.choice === 1) t.likes++;
+    else if (v.choice === 0) t.maybes++;
+    else if (v.choice === -1) t.dislikes++;
+    tally.set(v.tmdbId, t);
+  }
+  const n = participants;
+  return movies
+    .map((m) => {
+      const { likes, maybes, dislikes } = tally.get(m.tmdbId) ?? { likes: 0, maybes: 0, dislikes: 0 };
+      return {
+        movie: m,
+        likes,
+        maybes,
+        dislikes,
+        unanimous: n > 0 && likes === n,
+        acceptable: n > 0 && dislikes === 0 && likes + maybes === n,
+        score: likes * 2 + maybes,
+      };
+    })
+    .filter((r) => r.likes + r.maybes > 0)
+    .sort(
+      (a, b) =>
+        Number(b.unanimous) - Number(a.unanimous) ||
+        Number(b.acceptable) - Number(a.acceptable) ||
+        b.score - a.score ||
+        a.dislikes - b.dislikes ||
+        (b.movie.voteAverage ?? -1) - (a.movie.voteAverage ?? -1) ||
+        a.movie.position - b.movie.position,
+    );
+}

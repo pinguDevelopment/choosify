@@ -1,5 +1,6 @@
 import "server-only";
-import { db } from "./db";
+import { randomUUID } from "node:crypto";
+import { countAll, db, dialect, isForeignKeyViolation, isLimitViolation, isUniqueViolation, upsert } from "./db";
 import { AppError } from "./http";
 import { env } from "./env";
 import { discover, getMovieDetails, getProviders, posterUrl, type MovieDetails } from "./tmdb";
@@ -9,13 +10,16 @@ import { hashSecret, newRoomCode, newSecret } from "./tokens";
 import { currentAccount, selectCrew } from "./account";
 import { setCrewCookie, setParticipantCookie, currentCrew, type Participant, type Room } from "./session";
 import { BUCKETS, NO_YEARS, mixBuckets, pickCandidates, randomPage, releaseYear, personalOrder, streamableOn, type Choice, type TmdbMovie, type YearRange } from "../candidates";
-import { runoffResult, tiedLeaders } from "../ranking";
+import { rankMovies, runoffResult, tiedLeaders } from "../ranking";
 import { averageStars, EMPTY_TASTE, tasteBoost, tasteRerank, tasteSummary, type Taste } from "../taste";
 import { crewRatings, loadCrewTaste, rateLink } from "./ratings";
 
 export { AppError };
 
-const PG_UNIQUE = "23505";
+/** So lange gilt eine Runde. */
+const ROOM_HOURS = 24;
+/** Höchstens so viele Filme im Abspann einer Crew (früher ein Trigger in Postgres). */
+const MAX_ABSPANN = 2000;
 
 // ---- Raum erstellen / beitreten ------------------------------------------
 
@@ -38,19 +42,17 @@ export async function createRoom(input: {
     const account = await currentAccount();
     const secret = newSecret();
     const name = input.crewName?.trim() || (input.locale === "en" ? `${input.hostName}’s crew` : `Crew von ${input.hostName}`);
-    const { data, error } = await db()
-      .from("crews")
-      .insert({ name, secret_hash: hashSecret(secret, app), account_id: account?.id ?? null })
-      .select("id, name")
-      .single();
-    if (error) throw error;
-    crew = data;
-    if (account) await selectCrew(data.id);
-    else await setCrewCookie(data.id, secret);
+    const id = randomUUID();
+    await db()
+      .insertInto("crews")
+      .values({ id, name, secret_hash: hashSecret(secret, app), account_id: account?.id ?? null })
+      .execute();
+    crew = { id, name };
+    if (account) await selectCrew(id);
+    else await setCrewCookie(id, secret);
   } else {
     // Zuletzt benutzte Crew steht auf anderen Geräten vorne.
-    const { error } = await db().from("crews").update({ last_used_at: new Date().toISOString() }).eq("id", crew.id);
-    if (error) throw error;
+    await db().updateTable("crews").set({ last_used_at: new Date().toISOString() }).where("id", "=", crew.id).execute();
   }
 
   return insertRoom({
@@ -76,75 +78,94 @@ export async function insertRoom(input: {
   hostName?: string;
 }): Promise<{ code: string; id: string }> {
   const years = input.years ?? NO_YEARS;
+  await cleanupExpired();
   // Code-Kollisionen sind extrem unwahrscheinlich, trotzdem abfangen.
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = newRoomCode();
-    const { data: room, error } = await db()
-      .from("rooms")
-      .insert({
-        code,
-        crew_id: input.crewId,
-        region: input.region,
-        provider_ids: input.providerIds,
-        any_source: input.anySource,
-        year_from: years.from,
-        year_to: years.to,
-      })
-      .select("id")
-      .single();
-    if (error?.code === PG_UNIQUE) continue;
-    if (error) throw error;
-    if (!input.hostName) return { code, id: room.id };
+    const id = randomUUID();
+    try {
+      await db()
+        .insertInto("rooms")
+        .values({
+          id,
+          code,
+          crew_id: input.crewId,
+          region: input.region,
+          provider_ids: input.providerIds,
+          any_source: input.anySource,
+          year_from: years.from,
+          year_to: years.to,
+          expires_at: new Date(Date.now() + ROOM_HOURS * 3600_000).toISOString(),
+        })
+        .execute();
+    } catch (err) {
+      if (isUniqueViolation(err)) continue;
+      throw err;
+    }
+    if (!input.hostName) return { code, id };
 
     const secret = newSecret();
-    const { error: pErr } = await db().from("participants").insert({
-      room_id: room.id,
-      name: input.hostName,
-      token_hash: hashSecret(secret, env().APP_SECRET),
-      is_host: true,
-    });
-    if (pErr) throw pErr;
+    await db()
+      .insertInto("participants")
+      .values({ id: randomUUID(), room_id: id, name: input.hostName, token_hash: hashSecret(secret, env().APP_SECRET), is_host: true })
+      .execute();
     await setParticipantCookie(code, secret);
-    return { code, id: room.id };
+    return { code, id };
   }
   throw new Error("Konnte keinen freien Raum-Code finden");
 }
 
 export async function joinRoom(room: Room, name: string): Promise<void> {
   if (room.status === "done") throw new AppError(409, "Diese Runde ist schon beendet");
-  const { count } = await db()
-    .from("participants")
-    .select("id", { count: "exact", head: true })
-    .eq("room_id", room.id);
-  if ((count ?? 0) >= 30) throw new AppError(409, "Die Runde ist voll");
+  const people = await db().selectFrom("participants").select(["name", "is_host"]).where("room_id", "=", room.id).execute();
+  if (people.length >= 30) throw new AppError(409, "Die Runde ist voll");
+  if (people.some((p) => p.name.toLowerCase() === name.toLowerCase())) throw new AppError(409, "Dieser Name ist schon vergeben");
 
   // Runde vom Fernseher hat noch keinen Host: Wer zuerst beitritt, leitet die Runde.
-  // Der Unique-Index participants_one_host verhindert zwei Hosts, falls zwei gleichzeitig beitreten.
-  const { count: hosts, error: hErr } = await db()
-    .from("participants")
-    .select("id", { count: "exact", head: true })
-    .eq("room_id", room.id)
-    .eq("is_host", true);
-  if (hErr) throw hErr;
+  // Der Unique-Index participants_one_host verhindert zwei Hosts, falls zwei gleichzeitig beitreten:
+  // Dann scheitert das Einfügen als Host und die Person kommt als Gast rein.
   const secret = newSecret();
   const row = { room_id: room.id, name, token_hash: hashSecret(secret, env().APP_SECRET) };
-  let { error } = await db().from("participants").insert({ ...row, is_host: (hosts ?? 0) === 0 });
-  if (error?.code === PG_UNIQUE && error.message.includes("participants_one_host")) {
-    ({ error } = await db().from("participants").insert({ ...row, is_host: false }));
+  const id = randomUUID();
+  const insert = (isHost: boolean) => db().insertInto("participants").values({ ...row, id, is_host: isHost }).execute();
+  const asHost = !people.some((p) => p.is_host);
+  try {
+    try {
+      await insert(asHost);
+    } catch (err) {
+      if (!isUniqueViolation(err) || !asHost) throw err;
+      await insert(false);
+    }
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new AppError(409, "Dieser Name ist schon vergeben");
+    throw err;
   }
-  if (error?.code === PG_UNIQUE) throw new AppError(409, "Dieser Name ist schon vergeben");
-  if (error) throw error;
+  if (asHost) await keepOneHost(room.id);
   await setParticipantCookie(room.code, secret);
+}
+
+/**
+ * MariaDB kennt keinen Teil-Index für "nur ein Host pro Runde". Sind zwei gleichzeitig als Host
+ * hineingekommen, bleibt nur die Person Host, die zuerst beigetreten ist.
+ */
+async function keepOneHost(roomId: string) {
+  const hosts = await db()
+    .selectFrom("participants")
+    .select("id")
+    .where("room_id", "=", roomId)
+    .where("is_host", "=", true)
+    .orderBy("joined_at")
+    .orderBy("id")
+    .execute();
+  if (hosts.length > 1) {
+    await db().updateTable("participants").set({ is_host: false }).where("id", "in", hosts.slice(1).map((h) => h.id)).execute();
+  }
 }
 
 // ---- Ablauf -----------------------------------------------------------------
 
 export async function setGenres(me: Participant, genreIds: number[]) {
-  const { error } = await db()
-    .from("participants")
-    .update({ genre_ids: [...new Set(genreIds)], genres_done: true })
-    .eq("id", me.id);
-  if (error) throw error;
+  await db().updateTable("participants").set({ genre_ids: [...new Set(genreIds)], genres_done: true }).where("id", "=", me.id).execute();
 }
 
 const ROOM_SIZE = 30;
@@ -210,21 +231,16 @@ export async function startVoting(room: Room, me: Participant) {
   if (!me.is_host) throw new AppError(403, "Nur der Host kann starten");
   if (room.status !== "lobby") throw new AppError(409, "Die Runde läuft schon");
 
-  const { data: people, error } = await db()
-    .from("participants")
-    .select("genre_ids")
-    .eq("room_id", room.id);
-  if (error) throw error;
-  const selections = (people ?? []).map((p) => p.genre_ids as number[]);
+  const people = await db().selectFrom("participants").select("genre_ids").where("room_id", "=", room.id).execute();
+  const selections = people.map((p) => p.genre_ids);
   const genreIds = [...new Set(selections.flat())];
 
   let watched: number[] = [];
   let taste = EMPTY_TASTE;
   if (room.crew_id) {
-    const { data, error: aErr } = await db().from("abspann").select("tmdb_id, genre_ids, tags").eq("crew_id", room.crew_id);
-    if (aErr) throw aErr;
-    watched = (data ?? []).map((r) => r.tmdb_id);
-    taste = await loadCrewTaste(room.crew_id, data ?? []);
+    const data = await db().selectFrom("abspann").select(["tmdb_id", "genre_ids", "tags"]).where("crew_id", "=", room.crew_id).execute();
+    watched = data.map((r) => r.tmdb_id);
+    taste = await loadCrewTaste(room.crew_id, data);
   }
 
   const picked = await findCandidates(room, genreIds, selections, watched, taste);
@@ -256,18 +272,17 @@ export async function startVoting(room: Room, me: Participant) {
       rating: m.vote_average,
     }),
   }));
-  const { error: mErr } = await db().from("room_movies").insert(rows);
-  if (mErr) throw mErr;
+  try {
+    await db().insertInto("room_movies").values(rows).execute();
+  } catch (err) {
+    // Doppelter Klick: Die Filme hat der erste Klick schon eingetragen
+    if (isUniqueViolation(err)) throw new AppError(409, "Die Runde läuft schon");
+    throw err;
+  }
 
   // Nur von lobby -> voting wechseln (schützt vor doppeltem Klick).
-  const { data: upd, error: uErr } = await db()
-    .from("rooms")
-    .update({ status: "voting" })
-    .eq("id", room.id)
-    .eq("status", "lobby")
-    .select("id");
-  if (uErr) throw uErr;
-  if (!upd?.length) throw new AppError(409, "Die Runde läuft schon");
+  const upd = await db().updateTable("rooms").set({ status: "voting" }).where("id", "=", room.id).where("status", "=", "lobby").executeTakeFirst();
+  if (!Number(upd.numUpdatedRows)) throw new AppError(409, "Die Runde läuft schon");
 }
 
 const CHOICE_TO_DB: Record<Choice, number> = { yes: 1, maybe: 0, no: -1 };
@@ -276,16 +291,20 @@ const DB_TO_CHOICE: Record<number, Choice> = { 1: "yes", 0: "maybe", [-1]: "no" 
 export async function vote(room: Room, me: Participant, tmdbId: number, choice: Choice | null) {
   if (room.status !== "voting") throw new AppError(409, "Gerade wird nicht abgestimmt");
   if (choice === null) {
-    const { error } = await db().from("votes").delete().eq("participant_id", me.id).eq("tmdb_id", tmdbId);
-    if (error) throw error;
+    await db().deleteFrom("votes").where("participant_id", "=", me.id).where("tmdb_id", "=", tmdbId).execute();
     return;
   }
-  const { error } = await db()
-    .from("votes")
-    .upsert({ room_id: room.id, participant_id: me.id, tmdb_id: tmdbId, choice: CHOICE_TO_DB[choice], voted_at: new Date().toISOString() });
-  // FK-Fehler = Film gehört nicht zu diesem Raum
-  if (error?.code === "23503") throw new AppError(400, "Unbekannter Film");
-  if (error) throw error;
+  try {
+    await upsert(
+      "votes",
+      { room_id: room.id, participant_id: me.id, tmdb_id: tmdbId, choice: CHOICE_TO_DB[choice], voted_at: new Date().toISOString() },
+      ["participant_id", "tmdb_id"],
+    );
+  } catch (err) {
+    // FK-Fehler = Film gehört nicht zu diesem Raum
+    if (isForeignKeyViolation(err)) throw new AppError(400, "Unbekannter Film");
+    throw err;
+  }
 }
 
 /**
@@ -300,17 +319,16 @@ export async function finish(room: Room, me: Participant, addToAbspann: boolean)
     return { runoff: false };
   }
   if (room.status !== "voting") throw new AppError(409, "Gerade wird nicht abgestimmt");
-  const ranking = await loadRanking(room.id);
+  const ranking = await loadRanking(room);
   const leaders = tiedLeaders(ranking);
   if (leaders.length > 1) {
-    const { data, error } = await db()
-      .from("rooms")
-      .update({ status: "runoff", runoff_ids: leaders.map((r) => r.tmdbId), winner_to_abspann: addToAbspann })
-      .eq("id", room.id)
-      .eq("status", "voting")
-      .select("id");
-    if (error) throw error;
-    if (!data?.length) throw new AppError(409, "Die Abstimmung ist schon beendet");
+    const res = await db()
+      .updateTable("rooms")
+      .set({ status: "runoff", runoff_ids: leaders.map((r) => r.tmdbId), winner_to_abspann: addToAbspann })
+      .where("id", "=", room.id)
+      .where("status", "=", "voting")
+      .executeTakeFirst();
+    if (!Number(res.numUpdatedRows)) throw new AppError(409, "Die Abstimmung ist schon beendet");
     return { runoff: true };
   }
   await complete(room, "voting", ranking[0]?.tmdbId ?? null, addToAbspann);
@@ -319,20 +337,18 @@ export async function finish(room: Room, me: Participant, addToAbspann: boolean)
 
 /** Setzt den Gewinner. Der Status-Filter sorgt dafür, dass das nur einmal passiert. */
 async function complete(room: Room, from: Room["status"], winner: number | null, toAbspann: boolean) {
-  const { data, error } = await db()
-    .from("rooms")
-    .update({ status: "done", winner_tmdb_id: winner })
-    .eq("id", room.id)
-    .eq("status", from)
-    .select("id");
-  if (error) throw error;
-  if (data?.length && toAbspann && winner) await addWinnerToAbspann(room, winner);
+  const res = await db()
+    .updateTable("rooms")
+    .set({ status: "done", winner_tmdb_id: winner })
+    .where("id", "=", room.id)
+    .where("status", "=", from)
+    .executeTakeFirst();
+  if (Number(res.numUpdatedRows) && toAbspann && winner) await addWinnerToAbspann(room, winner);
 }
 
 async function resolveRunoff(room: Room) {
-  const { data, error } = await db().from("runoff_votes").select("tmdb_id").eq("room_id", room.id);
-  if (error) throw error;
-  const { winner } = runoffResult(room.runoff_ids ?? [], (data ?? []).map((v) => v.tmdb_id));
+  const data = await db().selectFrom("runoff_votes").select("tmdb_id").where("room_id", "=", room.id).execute();
+  const { winner } = runoffResult(room.runoff_ids ?? [], data.map((v) => v.tmdb_id));
   await complete(room, "runoff", winner, room.winner_to_abspann);
 }
 
@@ -340,17 +356,18 @@ async function resolveRunoff(room: Room) {
 export async function runoffVote(room: Room, me: Participant, tmdbId: number) {
   if (room.status !== "runoff") throw new AppError(409, "Gerade läuft keine Stichwahl");
   if (!room.runoff_ids?.includes(tmdbId)) throw new AppError(400, "Dieser Film ist nicht in der Stichwahl");
-  const { error } = await db()
-    .from("runoff_votes")
-    .upsert({ room_id: room.id, participant_id: me.id, tmdb_id: tmdbId, voted_at: new Date().toISOString() });
-  if (error) throw error;
+  await upsert(
+    "runoff_votes",
+    { room_id: room.id, participant_id: me.id, tmdb_id: tmdbId, voted_at: new Date().toISOString() },
+    ["room_id", "participant_id"],
+  );
   // Haben alle gewählt, steht der Gewinner sofort fest.
-  const [{ count: people, error: pErr }, { count: picks, error: vErr }] = await Promise.all([
-    db().from("participants").select("id", { count: "exact", head: true }).eq("room_id", room.id),
-    db().from("runoff_votes").select("participant_id", { count: "exact", head: true }).eq("room_id", room.id),
+  const [p, v] = await Promise.all([
+    db().selectFrom("participants").select(countAll()).where("room_id", "=", room.id).executeTakeFirst(),
+    db().selectFrom("runoff_votes").select(countAll()).where("room_id", "=", room.id).executeTakeFirst(),
   ]);
-  if (pErr) throw pErr;
-  if (vErr) throw vErr;
+  const people = Number(p?.n ?? 0);
+  const picks = Number(v?.n ?? 0);
   if (people && picks && picks >= people) await resolveRunoff(room);
 }
 
@@ -370,12 +387,12 @@ export type RankingRow = {
 };
 
 export async function roomState(room: Room, me: Participant | null, locale: Locale = "de") {
-  const { data: people, error } = await db()
-    .from("participants")
-    .select("id, name, is_host, genres_done")
-    .eq("room_id", room.id)
-    .order("joined_at");
-  if (error) throw error;
+  const people = await db()
+    .selectFrom("participants")
+    .select(["id", "name", "is_host", "genres_done"])
+    .where("room_id", "=", room.id)
+    .orderBy("joined_at")
+    .execute();
 
   const base = {
     code: room.code,
@@ -388,32 +405,24 @@ export async function roomState(room: Room, me: Participant | null, locale: Loca
   // Wer nicht beigetreten ist, sieht nur das Nötigste zum Beitreten.
   if (!me) return { ...base, participants: [], movies: [], myVotes: {}, ranking: [], runoff: null, winner: null, rateToken: null };
 
-  const [{ data: movies, error: mErr }, { data: votes, error: vErr }] = await Promise.all([
-    db()
-      .from("room_movies")
-      .select("tmdb_id, title, overview, title_en, overview_en, poster_path, release_year, vote_average, genre_ids, runtime_min, tags")
-      .eq("room_id", room.id)
-      .order("position"),
-    db().from("votes").select("participant_id, tmdb_id, choice").eq("room_id", room.id),
+  const [movies, votes] = await Promise.all([
+    roomMovies(room.id),
+    db().selectFrom("votes").select(["participant_id", "tmdb_id", "choice"]).where("room_id", "=", room.id).execute(),
   ]);
-  if (mErr) throw mErr;
-  if (vErr) throw vErr;
 
   const votedCount = new Map<string, number>();
   const myVotes: Record<number, Choice> = {};
-  for (const v of votes ?? []) {
+  for (const v of votes) {
     votedCount.set(v.participant_id, (votedCount.get(v.participant_id) ?? 0) + 1);
     if (v.participant_id === me.id) myVotes[v.tmdb_id] = DB_TO_CHOICE[v.choice];
   }
 
-  const [rawRanking, runoff, rateToken] = await Promise.all([loadRanking(room.id), runoffState(room, me), winnerRateToken(room)]);
-  // Titel in der Sprache der Person (die Rangliste aus der Datenbank kennt nur den deutschen)
-  const localTitle = new Map((movies ?? []).map((m) => [m.tmdb_id, localized(m, locale).title]));
-  const ranking = rawRanking.map((r) => ({ ...r, title: localTitle.get(r.tmdbId) ?? r.title }));
+  const [runoff, rateToken] = await Promise.all([runoffState(room, me), winnerRateToken(room)]);
+  const ranking = rankingOf(movies, votes, people.length, locale);
 
   return {
     ...base,
-    participants: (people ?? []).map((p) => ({
+    participants: people.map((p) => ({
       name: p.name,
       isHost: p.is_host,
       genresDone: p.genres_done,
@@ -422,7 +431,7 @@ export async function roomState(room: Room, me: Participant | null, locale: Loca
     // Jede Person bekommt eine eigene, gemischte Reihenfolge (fester Seed pro Person),
     // Filme derselben Reihe werden dabei auseinandergezogen.
     movies: personalOrder(
-      (movies ?? []).map((m) => ({
+      movies.map((m) => ({
         tmdbId: m.tmdb_id,
         ...localized(m, locale),
         poster: posterUrl(m.poster_path, "w500"),
@@ -459,39 +468,60 @@ export function localized(
 /** Bewertungslink für den Gewinner, sobald er im Abspann der Crew steht. */
 async function winnerRateToken(room: Room): Promise<string | null> {
   if (room.status !== "done" || !room.winner_tmdb_id || !room.crew_id) return null;
-  const { data, error } = await db()
-    .from("abspann")
+  const data = await db()
+    .selectFrom("abspann")
     .select("tmdb_id")
-    .eq("crew_id", room.crew_id)
-    .eq("tmdb_id", room.winner_tmdb_id)
-    .maybeSingle();
-  if (error) throw error;
+    .where("crew_id", "=", room.crew_id)
+    .where("tmdb_id", "=", room.winner_tmdb_id)
+    .executeTakeFirst();
   return data ? rateLink(room.crew_id, room.winner_tmdb_id) : null;
 }
 
-async function loadRanking(roomId: string): Promise<RankingRow[]> {
-  const { data: rank, error } = await db().rpc("room_ranking", { p_room_id: roomId });
-  if (error) throw error;
-  return (rank ?? []).map((r: Record<string, unknown>) => ({
-    tmdbId: r.tmdb_id as number,
-    title: r.title as string,
-    poster: posterUrl(r.poster_path as string | null),
-    year: (r.release_year as number | null) ?? null,
-    rating: r.vote_average != null ? Number(r.vote_average) : null,
-    likes: r.likes as number,
-    maybes: r.maybes as number,
-    dislikes: r.dislikes as number,
-    unanimous: r.unanimous as boolean,
-    acceptable: r.acceptable as boolean,
+function roomMovies(roomId: string) {
+  return db()
+    .selectFrom("room_movies")
+    .select(["tmdb_id", "position", "title", "overview", "title_en", "overview_en", "poster_path", "release_year", "vote_average", "genre_ids", "runtime_min", "tags"])
+    .where("room_id", "=", roomId)
+    .orderBy("position")
+    .execute();
+}
+
+type MovieRow = Awaited<ReturnType<typeof roomMovies>>[number];
+
+/** Rangliste aus Filmen und Stimmen (gleich für alle Datenbanken, siehe rankMovies). */
+function rankingOf(movies: MovieRow[], votes: { tmdb_id: number; choice: number }[], participants: number, locale: Locale): RankingRow[] {
+  const ranked = rankMovies(
+    movies.map((m) => ({ ...m, tmdbId: m.tmdb_id, voteAverage: m.vote_average != null ? Number(m.vote_average) : null })),
+    votes.map((v) => ({ tmdbId: v.tmdb_id, choice: v.choice })),
+    participants,
+  );
+  return ranked.map((r) => ({
+    tmdbId: r.movie.tmdb_id,
+    title: localized(r.movie, locale).title,
+    poster: posterUrl(r.movie.poster_path),
+    year: r.movie.release_year ?? null,
+    rating: r.movie.voteAverage,
+    likes: r.likes,
+    maybes: r.maybes,
+    dislikes: r.dislikes,
+    unanimous: r.unanimous,
+    acceptable: r.acceptable,
   }));
+}
+
+async function loadRanking(room: Room): Promise<RankingRow[]> {
+  const [movies, votes, people] = await Promise.all([
+    roomMovies(room.id),
+    db().selectFrom("votes").select(["tmdb_id", "choice"]).where("room_id", "=", room.id).execute(),
+    db().selectFrom("participants").select(countAll()).where("room_id", "=", room.id).executeTakeFirst(),
+  ]);
+  return rankingOf(movies, votes, Number(people?.n ?? 0), "de");
 }
 
 /** Stichwahl: während sie läuft, bleibt der Zwischenstand geheim (kein Mitläufer-Effekt). */
 async function runoffState(room: Room, me: Participant) {
   if (!room.runoff_ids?.length) return null;
-  const { data, error } = await db().from("runoff_votes").select("participant_id, tmdb_id").eq("room_id", room.id);
-  if (error) throw error;
-  const picks = data ?? [];
+  const picks = await db().selectFrom("runoff_votes").select(["participant_id", "tmdb_id"]).where("room_id", "=", room.id).execute();
   const result = runoffResult(room.runoff_ids, picks.map((v) => v.tmdb_id));
   return {
     tmdbIds: room.runoff_ids,
@@ -507,17 +537,16 @@ export type RoomState = Awaited<ReturnType<typeof roomState>>;
 // ---- Abspann ----------------------------------------------------------------
 
 export async function listAbspann(crewId: string, locale: Locale = "de") {
-  const [{ data, error }, ratings] = await Promise.all([
+  const [rows, ratings] = await Promise.all([
     db()
-      .from("abspann")
-      .select("tmdb_id, title, title_en, poster_path, release_year, watched_at, genre_ids, tags")
-      .eq("crew_id", crewId)
-      .order("watched_at", { ascending: false })
-      .limit(500),
+      .selectFrom("abspann")
+      .select(["tmdb_id", "title", "title_en", "poster_path", "release_year", "watched_at", "genre_ids", "tags"])
+      .where("crew_id", "=", crewId)
+      .orderBy("watched_at", "desc")
+      .limit(500)
+      .execute(),
     crewRatings(crewId),
   ]);
-  if (error) throw error;
-  const rows = data ?? [];
   const taste = await loadCrewTaste(crewId, rows);
   return {
     taste: { rated: taste.rated, ...tasteSummary(taste, 4, 0.2, locale) },
@@ -541,35 +570,45 @@ export async function addAbspann(
   crewId: string,
   m: { tmdbId: number; title: string; titleEn: string | null; posterPath: string | null; year: number | null; genreIds: number[]; tags: string[] },
 ) {
-  const { error } = await db().from("abspann").upsert({
-    crew_id: crewId,
-    tmdb_id: m.tmdbId,
-    title: m.title,
-    title_en: m.titleEn,
-    poster_path: m.posterPath,
-    release_year: m.year,
-    genre_ids: m.genreIds.slice(0, 20),
-    tags: m.tags.slice(0, 6),
-  });
-  if (error?.code === "P0001") throw new AppError(409, "Der Abspann ist voll");
-  if (error) throw error;
+  const [{ n }, existing] = await Promise.all([
+    db().selectFrom("abspann").select(countAll()).where("crew_id", "=", crewId).executeTakeFirstOrThrow(),
+    db().selectFrom("abspann").select("tmdb_id").where("crew_id", "=", crewId).where("tmdb_id", "=", m.tmdbId).executeTakeFirst(),
+  ]);
+  if (!existing && Number(n) >= MAX_ABSPANN) throw new AppError(409, "Der Abspann ist voll");
+  try {
+    await upsert(
+      "abspann",
+      {
+        crew_id: crewId,
+        tmdb_id: m.tmdbId,
+        title: m.title,
+        title_en: m.titleEn,
+        poster_path: m.posterPath,
+        release_year: m.year,
+        genre_ids: m.genreIds.slice(0, 20),
+        tags: m.tags.slice(0, 6),
+      },
+      ["crew_id", "tmdb_id"],
+    );
+  } catch (err) {
+    if (isLimitViolation(err)) throw new AppError(409, "Der Abspann ist voll");
+    throw err;
+  }
 }
 
 export async function removeAbspann(crewId: string, tmdbId: number) {
-  const { error } = await db().from("abspann").delete().eq("crew_id", crewId).eq("tmdb_id", tmdbId);
-  if (error) throw error;
+  await db().deleteFrom("abspann").where("crew_id", "=", crewId).where("tmdb_id", "=", tmdbId).execute();
 }
 
 /** Gewinner einer Runde in den Abspann übernehmen (Daten aus dem Raum, nicht vom Client). */
 export async function addWinnerToAbspann(room: Room, tmdbId: number) {
   if (!room.crew_id) return;
-  const { data, error } = await db()
-    .from("room_movies")
-    .select("tmdb_id, title, title_en, poster_path, release_year, genre_ids, tags")
-    .eq("room_id", room.id)
-    .eq("tmdb_id", tmdbId)
-    .maybeSingle();
-  if (error) throw error;
+  const data = await db()
+    .selectFrom("room_movies")
+    .select(["tmdb_id", "title", "title_en", "poster_path", "release_year", "genre_ids", "tags"])
+    .where("room_id", "=", room.id)
+    .where("tmdb_id", "=", tmdbId)
+    .executeTakeFirst();
   if (!data) throw new AppError(400, "Unbekannter Film");
   await addAbspann(room.crew_id, {
     tmdbId: data.tmdb_id,
@@ -580,4 +619,27 @@ export async function addWinnerToAbspann(room: Room, tmdbId: number) {
     genreIds: data.genre_ids ?? [],
     tags: data.tags ?? [],
   });
+}
+
+// ---- Aufräumen ---------------------------------------------------------------
+
+let lastCleanup = 0;
+
+/**
+ * Abgelaufene Runden, alte Limit-Zähler, Sitzungen und Fernseher-Codes löschen.
+ * Mit Supabase macht das pg_cron stündlich. Bei MariaDB/SQLite erledigt es die App selbst,
+ * höchstens einmal pro Stunde, beim Erstellen einer Runde.
+ */
+export async function cleanupExpired(): Promise<void> {
+  if (dialect() === "postgres" || Date.now() - lastCleanup < 3600_000) return;
+  lastCleanup = Date.now();
+  const now = new Date().toISOString();
+  try {
+    await db().deleteFrom("rooms").where("expires_at", "<", now).execute();
+    await db().deleteFrom("tv_pairings").where("expires_at", "<", now).execute();
+    await db().deleteFrom("account_sessions").where("expires_at", "<", now).execute();
+    await db().deleteFrom("rate_limits").where("updated_at", "<", new Date(Date.now() - 3600_000).toISOString()).execute();
+  } catch (err) {
+    console.error("Aufräumen fehlgeschlagen:", err);
+  }
 }
