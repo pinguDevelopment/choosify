@@ -1,0 +1,62 @@
+plugins {
+    id "com.android.application"
+}
+
+// Versionsnummer kommt aus GitHub Actions (fortlaufende Build-Nummer),
+// damit eine neue APK die alte beim Installieren einfach ersetzt.
+def buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
+// Adresse, die beim ersten Start geöffnet wird. Lässt sich in der App jederzeit ändern
+// (Menü-Taste oder OK lange drücken). Für einen eigenen Server beim Bauen z. B.:
+//   CINEMOOD_URL=https://film.example.de ./gradlew assembleRelease
+def defaultUrl = System.getenv("CINEMOOD_URL") ?: "https://cinemood.vercel.app"
+
+android {
+    namespace "app.cinemood.tv"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "app.cinemood.tv"
+        minSdk 21
+        targetSdk 35
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+        buildConfigField "String", "DEFAULT_URL", "\"${defaultUrl.replace('"', '')}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            // Eigener Schlüssel über GitHub-Secrets möglich, sonst der Sideload-Schlüssel im Repo.
+            // Wichtig ist nur, dass jede Version mit demselben Schlüssel signiert ist,
+            // sonst lässt Android kein Update über die alte App zu.
+            def ks = System.getenv("CINEMOOD_KEYSTORE")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("CINEMOOD_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CINEMOOD_KEY_ALIAS")
+                keyPassword System.getenv("CINEMOOD_KEY_PASSWORD")
+            } else {
+                storeFile rootProject.file("signing/sideload.jks")
+                storePassword "cinemood-sideload"
+                keyAlias "cinemood"
+                keyPassword "cinemood-sideload"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
