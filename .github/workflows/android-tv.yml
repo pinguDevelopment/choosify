@@ -1,0 +1,87 @@
+# Baut die Android-TV-App (Ordner android-tv/) und stellt die APK zum Herunterladen bereit:
+#  - bei jedem Pull Request als Download unter "Artifacts" (zum Testen)
+#  - nach dem Merge auf main zusätzlich als Release "tv-app" mit fester Adresse:
+#    https://github.com/pinguDevelopment/cinemood/releases/download/tv-app/cinemood-tv.apk
+name: Android-TV-App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android-tv/**"
+      - ".github/workflows/android-tv.yml"
+  pull_request:
+    paths:
+      - "android-tv/**"
+      - ".github/workflows/android-tv.yml"
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Server-Adresse, die die App beim ersten Start öffnet (leer = https://cinemood.vercel.app)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-tv-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.CINEMOOD_KEYSTORE_B64 != '' }}
+    defaults:
+      run:
+        working-directory: android-tv
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Optional: eigener Signier-Schlüssel als Secret (base64 der .jks-Datei). Ohne Secrets
+      # wird mit dem Sideload-Schlüssel aus android-tv/signing/ signiert.
+      - name: Signier-Schlüssel aus Secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.CINEMOOD_KEYSTORE_B64 }}
+        if: env.HAS_KEYSTORE == 'true'
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "CINEMOOD_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: APK bauen
+        env:
+          CINEMOOD_URL: ${{ github.event.inputs.url }}
+          CINEMOOD_KEYSTORE_PASSWORD: ${{ secrets.CINEMOOD_KEYSTORE_PASSWORD }}
+          CINEMOOD_KEY_ALIAS: ${{ secrets.CINEMOOD_KEY_ALIAS }}
+          CINEMOOD_KEY_PASSWORD: ${{ secrets.CINEMOOD_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk cinemood-tv.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cinemood-tv-apk
+          path: android-tv/cinemood-tv.apk
+          if-no-files-found: error
+
+      - name: Als Release "tv-app" veröffentlichen
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.event.inputs.url == '')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="Android-TV-App für Cinemood, Version 1.0.${GITHUB_RUN_NUMBER}. Installation: docs/android-tv.md"
+          if gh release view tv-app >/dev/null 2>&1; then
+            gh release edit tv-app --notes "$notes"
+          else
+            gh release create tv-app --title "Cinemood TV-App" --notes "$notes" --latest=false --target "$GITHUB_SHA"
+          fi
+          gh release upload tv-app cinemood-tv.apk --clobber

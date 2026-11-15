@@ -51,6 +51,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Kurze Adresse für die Android-TV-App, damit man am Fernseher nicht den langen GitHub-Link tippen muss
+  async redirects() {
+    return [
+      {
+        source: "/tv-app",
+        destination: "https://github.com/pinguDevelopment/cinemood/releases/download/tv-app/cinemood-tv.apk",
+        permanent: false,
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {
