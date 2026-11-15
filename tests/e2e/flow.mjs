@@ -216,6 +216,16 @@ assert.ok(rank.find((r) => r.tmdbId === b).acceptable, "Ja + Wäre ok ohne Nein 
 log("Rangliste: alle ♥ vor alle dabei");
 if (shots) await host.screenshot({ path: `${shots}/5-zwischenstand.png`, fullPage: true });
 
+// Abspann-Schalter: ist ein echter Schalter, an per Standard, lässt sich aus- und wieder anmachen
+const abspannSwitch = host.getByRole("switch", { name: /Gewinner in den Abspann/ });
+assert.equal(await abspannSwitch.getAttribute("aria-checked"), "true", "Abspann-Schalter ist an");
+await abspannSwitch.click();
+assert.equal(await abspannSwitch.getAttribute("aria-checked"), "false", "Abspann-Schalter geht aus");
+await abspannSwitch.click();
+assert.equal(await abspannSwitch.getAttribute("aria-checked"), "true", "Abspann-Schalter geht wieder an");
+log("Abspann-Schalter");
+if (shots) await abspannSwitch.locator("..").screenshot({ path: `${shots}/5a-abspann-schalter.png` });
+
 // Gleichstand -> Stichwahl -> genau ein Gewinner
 const finishBtn = host.getByRole("button", { name: /Abstimmung beenden/ });
 // Der Knopftext hängt am nächsten Live-Abruf, deshalb darauf warten statt sofort zu lesen

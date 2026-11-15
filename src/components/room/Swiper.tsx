@@ -8,6 +8,7 @@ import { tiedLeaders } from "@/lib/ranking";
 import { SwipeIntro, introSeen } from "./SwipeIntro";
 import { MovieSheet } from "./MovieSheet";
 import { useT } from "@/components/I18nProvider";
+import { Switch } from "@/components/Switch";
 
 const THRESHOLD = 110; // px, ab hier zählt ein Wisch
 const FLICK = 650; // px/s, ein schneller Schubs reicht auch ohne weiten Weg
@@ -214,10 +215,7 @@ function FinishButton({ state, onChange }: { state: RoomState; onChange: () => v
   return (
     <div className="flex flex-col gap-3 border-t-2 border-dashed border-line pt-4">
       {top && (
-        <label className="flex items-center gap-2 text-sm text-muted">
-          <input type="checkbox" checked={addToAbspann} onChange={(e) => setAdd(e.target.checked)} className="h-4 w-4 accent-[var(--butter)]" />
-          {t.swipe.toAbspann}
-        </label>
+        <Switch checked={addToAbspann} onChange={setAdd} label={t.swipe.toAbspann} hint={t.swipe.toAbspannHint} />
       )}
       {error && <p className="text-sm text-no">{error}</p>}
       <button
