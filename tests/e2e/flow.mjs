@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 const BASE = process.env.BASE ?? "http://localhost:3100";
 const shots = process.env.SHOTS;
 const browser = await chromium.launch();
-const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 };
+const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, locale: "de-DE" };
 const host = await (await browser.newContext(phone)).newPage();
 const guests = [await (await browser.newContext(phone)).newPage(), await (await browser.newContext(phone)).newPage()];
 const log = (...a) => console.log("✓", ...a);
@@ -36,7 +36,7 @@ await host.getByRole("button", { name: "Netflix als Favorit" }).click();
 await host.reload();
 await host.getByPlaceholder("z.B. Lena").fill("Lena");
 const netflix = host.getByRole("button", { name: "Netflix", exact: true });
-await host.waitForFunction(() => document.querySelector('button[aria-pressed="true"]')?.textContent?.includes("Netflix"));
+await host.waitForFunction(() => [...document.querySelectorAll('button[aria-pressed="true"]')].some((b) => b.textContent?.includes("Netflix")));
 assert.equal(await netflix.getAttribute("aria-pressed"), "true", "Favorit ist vorausgewählt");
 assert.equal(await host.getByRole("button", { name: "Netflix als Favorit" }).getAttribute("aria-pressed"), "true");
 log("Dienste: Suche und Favoriten funktionieren");
@@ -74,12 +74,41 @@ await dupe.getByRole("button", { name: "Beitreten" }).click();
 await dupe.getByText("Dieser Name ist schon vergeben").waitFor();
 log("Doppelter Name abgelehnt");
 
+// Sprache: englischer Browser bekommt Englisch, die Auswahl oben wird gemerkt
+{
+  const en = await (await browser.newContext({ ...phone, locale: "en-US" })).newPage();
+  await en.goto(url);
+  await en.getByRole("heading", { name: "Join the round" }).waitFor();
+  assert.equal(await en.locator("html").getAttribute("lang"), "en");
+  if (shots) await en.screenshot({ path: `${shots}/2b-join-en.png` });
+  await en.getByRole("button", { name: "Deutsch" }).click();
+  await en.getByRole("heading", { name: "Rein in die Runde" }).waitFor();
+  await en.goto(BASE);
+  await en.getByRole("heading", { name: "Filmabend starten" }).waitFor();
+  assert.equal(await en.locator("html").getAttribute("lang"), "de");
+  await en.getByRole("button", { name: "English" }).click();
+  await en.getByRole("heading", { name: "Start movie night" }).waitFor();
+  await en.context().close();
+  log("Sprache: Browsersprache als Standard, Auswahl bleibt gespeichert");
+}
+
 await host.getByText("3 bereit").waitFor({ timeout: 8000 });
 if (shots) await host.screenshot({ path: `${shots}/3-lobby.png`, fullPage: true });
 await host.getByRole("button", { name: "Swipen starten" }).click();
 await host.getByRole("button", { name: "Ja" }).waitFor();
 log("Swipen gestartet");
-const roomState = async (page) => (await page.request.get(`${BASE}/api/rooms/${code}`)).json();
+const roomState = async (page) => (await page.request.get(`${BASE}/api/rooms/${code}`, { headers: { "accept-language": "de-DE" } })).json();
+{
+  // Dieselbe Runde auf Englisch: Titel, Beschreibung, Genres und Tags übersetzt
+  const st = await (await host.request.get(`${BASE}/api/rooms/${code}`, { headers: { "accept-language": "en-US,en;q=0.9" } })).json();
+  assert.match(st.movies[0].title, /^Test movie \d+$/, "englischer Titel");
+  assert.match(st.movies[0].overview, /^Description of test movie/, "englische Beschreibung");
+  assert.ok(st.movies.every((m) => !m.genres.includes("Komödie") && !m.genres.includes("Abenteuer")), "englische Genres");
+  assert.ok(st.movies.some((m) => m.genres.includes("Comedy")), "Comedy statt Komödie");
+  assert.ok(st.movies.every((m) => !m.tags.includes("lustig")), "englische Tags");
+  assert.match((await roomState(host)).movies[0].title, /^Testfilm \d+$/, "deutsch bleibt deutsch");
+  log("Filmdaten auf Englisch und Deutsch");
+}
 
 // Kurze Einführung beim ersten Swipen: drei Hinweise, überspringbar, pro Gerät nur einmal
 {
@@ -220,7 +249,7 @@ await guests[1].getByRole("link", { name: "Neue Runde starten" }).click();
 await guests[1].getByPlaceholder("z.B. Lena").fill("Cem");
 await guests[1].getByRole("button", { name: "Runde erstellen" }).click();
 await guests[1].waitForURL((u) => /\/r\/[A-Z0-9]{10}$/.test(u.pathname) && u.href !== firstRoom);
-await guests[1].getByRole("link", { name: "Filmabend" }).first().click();
+await guests[1].getByRole("link", { name: "Cinemood" }).first().click();
 await guests[1].getByRole("button", { name: "Runde erstellen" }).waitFor({ timeout: 5000 });
 log("Neue Runde nach dem Ergebnis lässt sich wieder erstellen");
 

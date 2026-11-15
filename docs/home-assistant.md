@@ -1,12 +1,12 @@
-# Filmabend mit Home Assistant starten
+# Cinemood mit Home Assistant starten
 
-Ziel: Du sagst „Starte Filmabend“ (oder drückst einen Knopf), der Fernseher geht an und zeigt groß den QR-Code für die Runde. Alle scannen mit dem Handy, wer zuerst beitritt, leitet die Runde.
+Ziel: Du sagst „Starte Cinemood“ (oder drückst einen Knopf), der Fernseher geht an und zeigt groß den QR-Code für die Runde. Alle scannen mit dem Handy, wer zuerst beitritt, leitet die Runde.
 
-Home Assistant macht dabei nur zwei Dinge: Fernseher einschalten und einen Link im Browser des Fernsehers öffnen. Alles andere passiert in Filmabend. Ohne Home Assistant geht es genauso: den Link einfach von Hand auf dem Fernseher öffnen (oder als Lesezeichen speichern).
+Home Assistant macht dabei nur zwei Dinge: Fernseher einschalten und einen Link im Browser des Fernsehers öffnen. Alles andere passiert in Cinemood. Ohne Home Assistant geht es genauso: den Link einfach von Hand auf dem Fernseher öffnen (oder als Lesezeichen speichern).
 
-## 1. Link in Filmabend holen
+## 1. Link in Cinemood holen
 
-1. Filmabend öffnen, unten auf **Fernseher** tippen (oder `/fernseher` aufrufen).
+1. Cinemood öffnen, unten auf **Fernseher** tippen (oder `/fernseher` aufrufen).
    Gibt es auf dem Gerät noch keine Crew, zuerst einmal eine Runde starten.
 2. Die Dienste wählen, die ihr zu Hause habt (Netflix, Prime Video, …). Diese gelten für jede Runde vom Fernseher.
 3. **Fernseher einrichten** drücken, dann **Link kopieren**.
@@ -28,7 +28,7 @@ Einstellungen → Automationen & Szenen → **Skripte** → Skript hinzufügen �
 Integration: **LG webOS TV**. Damit der Fernseher aus dem Standby angeht, muss in der Integration „Einschalten“ eingerichtet sein (meist per Wake-on-LAN, am Fernseher „Mit Mobilgerät einschalten“ aktivieren).
 
 ```yaml
-alias: Starte Filmabend
+alias: Starte Cinemood
 sequence:
   - action: media_player.turn_on
     target:
@@ -50,7 +50,7 @@ sequence:
 Integration: **Android Debug Bridge** (am Fernseher in den Entwickleroptionen „ADB-Debugging“ bzw. „Netzwerk-Debugging“ einschalten). Auf dem Fernseher muss ein Browser installiert sein (Fire TV: Silk; Google TV z. B. „TV Bro“).
 
 ```yaml
-alias: Starte Filmabend
+alias: Starte Cinemood
 sequence:
   - action: media_player.turn_on
     target:
@@ -68,7 +68,7 @@ sequence:
 Die eingebaute Samsung-Integration kann keine Webseiten öffnen. Mit der Zusatz-Integration **SamsungTV Smart** (über HACS) geht es:
 
 ```yaml
-alias: Starte Filmabend
+alias: Starte Cinemood
 sequence:
   - action: media_player.turn_on
     target:
@@ -93,19 +93,19 @@ Falls ein Fernseher alles nach dem `#` abschneidet: statt `/tv#CODE` geht notfal
 **Sprachassistent von Home Assistant (Assist):** Automation anlegen, ebenfalls „In YAML bearbeiten“:
 
 ```yaml
-alias: Filmabend per Sprache
+alias: Cinemood per Sprache
 triggers:
   - trigger: conversation
     command:
-      - Starte Filmabend
-      - Filmabend starten
+      - Starte Cinemood
+      - Cinemood starten
 actions:
-  - action: script.starte_filmabend
+  - action: script.starte_cinemood
 ```
 
-(`script.starte_filmabend` ist der Name des Skripts aus Schritt 2, steht in der Skript-Übersicht.)
+(`script.starte_cinemood` ist der Name des Skripts aus Schritt 2, steht in der Skript-Übersicht.)
 
-**Alexa oder Google Assistant:** Das Skript über Home Assistant Cloud (oder die jeweilige Integration) freigeben, dann z. B. „Alexa, schalte Starte Filmabend ein“ bzw. eine Routine „Starte Filmabend“ anlegen, die das Skript ausführt.
+**Alexa oder Google Assistant:** Das Skript über Home Assistant Cloud (oder die jeweilige Integration) freigeben, dann z. B. „Alexa, schalte Starte Cinemood ein“ bzw. eine Routine „Starte Cinemood“ anlegen, die das Skript ausführt.
 
 **Knopf:** Das Skript auf dem Dashboard als Karte hinzufügen oder einem Zigbee-Taster zuweisen.
 

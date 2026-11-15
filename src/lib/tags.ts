@@ -26,9 +26,38 @@ export const GENRE_NAMES: Record<number, string> = {
   37: "Western",
 };
 
+/** Englische Namen der TMDB-Filmgenres (wie TMDB sie mit language=en-US liefert, etwas gekürzt). */
+export const GENRE_NAMES_EN: Record<number, string> = {
+  28: "Action",
+  12: "Adventure",
+  16: "Animation",
+  35: "Comedy",
+  80: "Crime",
+  99: "Documentary",
+  18: "Drama",
+  10751: "Family",
+  14: "Fantasy",
+  36: "History",
+  27: "Horror",
+  10402: "Music",
+  9648: "Mystery",
+  10749: "Romance",
+  878: "Sci-Fi",
+  10770: "TV Movie",
+  53: "Thriller",
+  10752: "War",
+  37: "Western",
+};
+
+/** Sprachen, für die es Genre- und Tag-Namen gibt (Deutsch ist die Grundlage). */
+export type TagLocale = "de" | "en";
+
+const GENRES_BY_LOCALE: Record<TagLocale, Record<number, string>> = { de: GENRE_NAMES, en: GENRE_NAMES_EN };
+
 /** Genre-Namen in TMDB-Reihenfolge (das wichtigste Genre steht vorne), unbekannte IDs fallen weg. */
-export function genreNames(ids: readonly number[] | null | undefined, max = 3): string[] {
-  return [...new Set(ids ?? [])].flatMap((id) => (GENRE_NAMES[id] ? [GENRE_NAMES[id]] : [])).slice(0, max);
+export function genreNames(ids: readonly number[] | null | undefined, max = 3, locale: TagLocale = "de"): string[] {
+  const names = GENRES_BY_LOCALE[locale];
+  return [...new Set(ids ?? [])].flatMap((id) => (names[id] ? [names[id]] : [])).slice(0, max);
 }
 
 /** Stimmung pro Genre: so würde man den Film in einem Satz beschreiben. */
@@ -107,6 +136,11 @@ const KEYWORD_TAGS: [tag: string, keywords: string[]][] = [
   ["queer", ["lgbt", "gay theme", "lesbian"]],
 ];
 
+/** Alle Tags, die movieTags() vergeben kann (für Übersetzungen und Tests). */
+export const ALL_TAGS: readonly string[] = [
+  ...new Set([...Object.values(GENRE_MOOD), ...KEYWORD_TAGS.map(([tag]) => tag), "klassiker", "topbewertet"]),
+];
+
 const KEYWORD_INDEX = new Map<string, string>();
 for (const [tag, kws] of KEYWORD_TAGS) for (const kw of kws) KEYWORD_INDEX.set(kw, tag);
 
@@ -143,6 +177,85 @@ export function movieTags({ genreIds, keywords = [], year, rating }: TagInput, m
   if (out.length < 2 && year != null && year < 1990) add("klassiker");
   if (out.length < 2 && rating != null && rating >= 8) add("topbewertet");
   return out;
+}
+
+/**
+ * Anzeige der Tags auf Englisch. Gespeichert werden immer die deutschen Schlüssel (Datenbank,
+ * Geschmack der Crew), übersetzt wird erst bei der Ausgabe.
+ */
+export const TAG_LABELS_EN: Record<string, string> = {
+  action: "action",
+  abenteuer: "adventure",
+  animiert: "animated",
+  lustig: "funny",
+  krimi: "crime",
+  doku: "docu",
+  drama: "drama",
+  familie: "family",
+  fantasy: "fantasy",
+  historisch: "historical",
+  gruselig: "creepy",
+  musik: "music",
+  rätselhaft: "mysterious",
+  romantisch: "romantic",
+  scifi: "scifi",
+  spannend: "thrilling",
+  krieg: "war",
+  western: "western",
+  wahregeschichte: "truestory",
+  buchverfilmung: "basedonbook",
+  superhelden: "superheroes",
+  comic: "comic",
+  plottwist: "plottwist",
+  taschentücher: "tearjerker",
+  feelgood: "feelgood",
+  schwarzerhumor: "darkhumor",
+  romcom: "romcom",
+  kultfilm: "cultclassic",
+  parodie: "parody",
+  zeitreise: "timetravel",
+  weltraum: "space",
+  aliens: "aliens",
+  dystopie: "dystopia",
+  ki: "ai",
+  roboter: "robots",
+  zombies: "zombies",
+  vampire: "vampires",
+  geister: "ghosts",
+  monster: "monsters",
+  slasher: "slasher",
+  serienkiller: "serialkiller",
+  psycho: "psycho",
+  raubzug: "heist",
+  gangster: "gangsters",
+  spionage: "spies",
+  rache: "revenge",
+  überleben: "survival",
+  katastrophe: "disaster",
+  kampfkunst: "martialarts",
+  magie: "magic",
+  drachen: "dragons",
+  dinosaurier: "dinosaurs",
+  piraten: "pirates",
+  mittelalter: "medieval",
+  freundschaft: "friendship",
+  erwachsenwerden: "comingofage",
+  schule: "school",
+  roadtrip: "roadtrip",
+  sport: "sports",
+  tierisch: "animals",
+  weihnachten: "christmas",
+  musical: "musical",
+  anime: "anime",
+  gerichtsdrama: "courtroom",
+  queer: "queer",
+  klassiker: "classic",
+  topbewertet: "toprated",
+};
+
+/** Tag in der Sprache der Oberfläche (ohne "#"). Unbekannte Tags bleiben, wie sie sind. */
+export function tagLabel(tag: string, locale: TagLocale = "de"): string {
+  return locale === "en" ? (TAG_LABELS_EN[tag] ?? tag) : tag;
 }
 
 /** Für die Datenbank: nur Kleinbuchstaben (inkl. Umlaute), kurz. */

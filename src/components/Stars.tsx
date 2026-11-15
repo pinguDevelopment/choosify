@@ -1,15 +1,17 @@
 "use client";
 import { motion } from "motion/react";
 import { useState } from "react";
+import { useLocale, useT } from "@/components/I18nProvider";
 
-const LABELS = ["", "Schwach", "Ging so", "Okay", "Gut", "Großartig"];
-const fmt = (n: number) => n.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmt = (n: number, locale: string) => n.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /** Fünf Sterne zum Anzeigen, teilweise gefüllt (z. B. 3,6). */
 export function StarsDisplay({ value, size = "text-base" }: { value: number; size?: string }) {
   const pct = Math.max(0, Math.min(100, (value / 5) * 100));
+  const t = useT();
+  const locale = useLocale();
   return (
-    <span className={`relative inline-block leading-none tracking-[0.08em] ${size}`} role="img" aria-label={`${fmt(value)} von 5 Sternen`}>
+    <span className={`relative inline-block leading-none tracking-[0.08em] ${size}`} role="img" aria-label={t.stars.ofFive(fmt(value, locale))}>
       <span aria-hidden className="text-line">★★★★★</span>
       <span aria-hidden className="absolute inset-0 overflow-hidden text-accent" style={{ width: `${pct}%` }}>
         ★★★★★
@@ -19,11 +21,13 @@ export function StarsDisplay({ value, size = "text-base" }: { value: number; siz
 }
 
 export function Average({ value, count }: { value: number | null; count: number }) {
-  if (value == null) return <span className="text-sm text-muted">noch keine Sterne</span>;
+  const t = useT();
+  const locale = useLocale();
+  if (value == null) return <span className="text-sm text-muted">{t.stars.none}</span>;
   return (
     <span className="inline-flex items-center gap-1.5">
       <StarsDisplay value={value} />
-      <span className="font-semibold">{fmt(value)}</span>
+      <span className="font-semibold">{fmt(value, locale)}</span>
       <span className="text-sm text-muted">({count})</span>
     </span>
   );
@@ -33,16 +37,17 @@ export function Average({ value, count }: { value: number | null; count: number 
 export function StarsInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [hover, setHover] = useState(0);
   const shown = hover || value;
+  const t = useT();
   return (
     <div className="flex flex-col items-center gap-2">
-      <div role="radiogroup" aria-label="Sterne" className="flex gap-1" onMouseLeave={() => setHover(0)}>
+      <div role="radiogroup" aria-label={t.stars.group} className="flex gap-1" onMouseLeave={() => setHover(0)}>
         {[1, 2, 3, 4, 5].map((n) => (
           <motion.button
             key={n}
             type="button"
             role="radio"
             aria-checked={value === n}
-            aria-label={`${n} ${n === 1 ? "Stern" : "Sterne"}`}
+            aria-label={t.stars.count(n)}
             tabIndex={value === n || (!value && n === 1) ? 0 : -1}
             onClick={() => onChange(n)}
             onMouseEnter={() => setHover(n)}
@@ -62,7 +67,7 @@ export function StarsInput({ value, onChange }: { value: number; onChange: (v: n
         ))}
       </div>
       <p className="h-6 font-display text-lg font-bold text-muted" aria-live="polite">
-        {LABELS[shown]}
+        {t.stars.labels[shown]}
       </p>
     </div>
   );

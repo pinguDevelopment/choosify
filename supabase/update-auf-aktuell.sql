@@ -1,4 +1,4 @@
--- Filmabend: bringt eine bestehende Datenbank auf den aktuellen Stand (Stand 15.11., mit Konten, Bewertungen und Fernseher-Link).
+-- Cinemood: bringt eine bestehende Datenbank auf den aktuellen Stand (Stand 15.11., mit Konten, Bewertungen, Fernseher-Link und Mehrsprachigkeit).
 -- Darf beliebig oft ausgeführt werden, egal welche Updates schon gelaufen sind.
 -- Im Supabase-Dashboard unter "SQL Editor" komplett einfügen und auf "Run" klicken.
 -- Ganz unten steht eine Prüfung: Sie listet alles, was noch fehlt (leeres Ergebnis = alles da).
@@ -211,6 +211,19 @@ create table if not exists crew_tv (
 
 alter table crew_tv enable row level security;
 
+-- 5d) Mehrsprachigkeit: englischer Titel und Beschreibung pro Film, damit die englische Oberfläche
+-- nicht bei jedem Abruf TMDB fragen muss. Die deutschen Texte stehen weiter in title/overview.
+-- Fehlt der englische Text (ältere Runden), zeigt die englische Oberfläche den deutschen.
+alter table room_movies add column if not exists title_en text;
+alter table room_movies add column if not exists overview_en text;
+alter table room_movies drop constraint if exists room_movies_title_en_check;
+alter table room_movies add constraint room_movies_title_en_check check (char_length(title_en) <= 300);
+alter table room_movies drop constraint if exists room_movies_overview_en_check;
+alter table room_movies add constraint room_movies_overview_en_check check (char_length(overview_en) <= 2000);
+alter table abspann add column if not exists title_en text;
+alter table abspann drop constraint if exists abspann_title_en_check;
+alter table abspann add constraint abspann_title_en_check check (char_length(title_en) <= 300);
+
 -- 6) Browser-Rollen haben weiterhin keinen Zugriff (alles läuft über den Server)
 do $$
 begin
@@ -231,7 +244,8 @@ select fehlt from (
                ('accounts','favorite_provider_ids'), ('account_sessions','token_hash'),
                ('crews','account_id'), ('crews','last_used_at'), ('room_movies','tags'),
                ('abspann','genre_ids'), ('abspann','tags'), ('ratings','stars'),
-               ('crew_tv','provider_ids'), ('crew_tv','last_room_id')) need(t, c)
+               ('crew_tv','provider_ids'), ('crew_tv','last_room_id'),
+               ('room_movies','title_en'), ('room_movies','overview_en'), ('abspann','title_en')) need(t, c)
   where not exists (select 1 from information_schema.columns
                     where table_schema = 'public' and table_name = need.t and column_name = need.c)
   union all

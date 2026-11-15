@@ -1,14 +1,16 @@
 "use client";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { useT } from "@/components/I18nProvider";
 
 export function JoinForm({ code, status, onJoined }: { code: string; status: string; onJoined: () => void }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   if (status === "done") {
-    return <div className="card text-center">Diese Runde ist schon vorbei.</div>;
+    return <div className="card text-center">{t.join.over}</div>;
   }
 
   return (
@@ -29,21 +31,21 @@ export function JoinForm({ code, status, onJoined }: { code: string; status: str
       }}
     >
       <div>
-        <h1 className="text-4xl">Rein in die Runde</h1>
-        <p className="mt-2 text-muted">Unter welchem Namen sehen dich die anderen?</p>
+        <h1 className="text-4xl">{t.join.title}</h1>
+        <p className="mt-2 text-muted">{t.join.hint}</p>
       </div>
       <input
         className="input"
         value={name}
         maxLength={30}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Dein Name"
+        placeholder={t.common.yourName}
         autoFocus
         required
       />
       {error && <p className="text-sm text-no">{error}</p>}
       <button className="btn-primary" disabled={busy || !name.trim()}>
-        {busy ? "Trete bei …" : "Beitreten"}
+        {busy ? t.join.busy : t.join.button}
       </button>
     </form>
   );

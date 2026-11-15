@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Filmabend",
-    short_name: "Filmabend",
-    description: "Gemeinsam schnell einen Film finden",
+    name: "Cinemood",
+    short_name: "Cinemood",
+    description: "Find a movie everyone wants to watch, fast · Gemeinsam schnell einen Film finden",
     start_url: "/",
     display: "standalone",
     background_color: "#2a0a14",

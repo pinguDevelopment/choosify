@@ -1,5 +1,5 @@
 // Geschmack einer Crew aus den Sternen im Abspann. Reine Logik ohne Server-Abhängigkeiten.
-import { GENRE_MOOD, GENRE_NAMES } from "./tags.ts";
+import { GENRE_MOOD, genreNames, tagLabel, type TagLocale } from "./tags.ts";
 
 /** Stimmungs-Tags wie #lustig sagen dasselbe wie das Genre und zählen deshalb nicht extra. */
 const MOOD_TAGS = new Set(Object.values(GENRE_MOOD));
@@ -75,10 +75,10 @@ export function tasteRerank<T>(items: readonly T[], boost: (item: T) => number, 
 }
 
 /** Für die Anzeige im Abspann: was die Crew mag und was eher nicht (deutliche Ausschläge). */
-export function tasteSummary(taste: Taste, max = 4, threshold = 0.2) {
+export function tasteSummary(taste: Taste, max = 4, threshold = 0.2, locale: TagLocale = "de") {
   const entries = [
-    ...[...taste.genres].flatMap(([id, v]) => (GENRE_NAMES[id] ? [{ label: GENRE_NAMES[id], v }] : [])),
-    ...[...taste.tags].map(([tag, v]) => ({ label: `#${tag}`, v })),
+    ...[...taste.genres].flatMap(([id, v]) => genreNames([id], 1, locale).map((label) => ({ label, v }))),
+    ...[...taste.tags].map(([tag, v]) => ({ label: `#${tagLabel(tag, locale)}`, v })),
   ];
   const pick = (list: typeof entries) => list.slice(0, max).map((e) => e.label);
   return {

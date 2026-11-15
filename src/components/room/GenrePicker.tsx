@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { api, type Genre } from "@/lib/api";
 import { Chip } from "@/components/Chip";
+import { useT } from "@/components/I18nProvider";
 
 const EMOJI: Record<number, string> = {
   28: "💥", 12: "🧭", 16: "🎨", 35: "😂", 80: "🕵️", 99: "📚", 18: "🎭", 10751: "👨‍👩‍👧",
@@ -14,6 +15,7 @@ export function GenrePicker({ code, initial, onDone }: { code: string; initial: 
   const [picked, setPicked] = useState<number[]>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   useEffect(() => {
     api<{ genres: Genre[] }>("/api/tmdb/genres")
@@ -27,8 +29,8 @@ export function GenrePicker({ code, initial, onDone }: { code: string; initial: 
   return (
     <section className="flex flex-col gap-5">
       <div>
-        <h2 className="text-4xl">Worauf hast du Bock?</h2>
-        <p className="mt-2 text-muted">Wähl so viele Genres, wie du willst. Gar keins heißt: mir egal.</p>
+        <h2 className="text-4xl">{t.genres.title}</h2>
+        <p className="mt-2 text-muted">{t.genres.hint}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         {genres === null && !error && Array.from({ length: 10 }, (_, i) => <span key={i} className="h-9 w-24 animate-pulse rounded-full bg-surface-2" />)}
@@ -56,7 +58,7 @@ export function GenrePicker({ code, initial, onDone }: { code: string; initial: 
           }
         }}
       >
-        {picked.length ? `Weiter mit ${picked.length} Genre${picked.length > 1 ? "s" : ""}` : "Mir ist alles recht"}
+        {picked.length ? t.genres.next(picked.length) : t.genres.any}
       </button>
     </section>
   );

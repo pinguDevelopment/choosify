@@ -3,6 +3,7 @@ import { MotionConfig, motion } from "motion/react";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import type { RoomState } from "./types";
+import { useT } from "@/components/I18nProvider";
 
 const SPRING = { type: "spring", stiffness: 380, damping: 30 } as const;
 
@@ -12,6 +13,7 @@ export function Runoff({ state, onChange }: { state: RoomState; onChange: () => 
   const [pick, setPick] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const t = useT();
   const chosen = pick ?? runoff.myPick;
   const films = runoff.tmdbIds
     .map((id) => state.ranking.find((r) => r.tmdbId === id) ?? state.movies.find((m) => m.tmdbId === id))
@@ -33,10 +35,10 @@ export function Runoff({ state, onChange }: { state: RoomState; onChange: () => 
   return (
     <MotionConfig reducedMotion="user">
       <section className="flex flex-col gap-2 text-center">
-        <p className="text-lg text-muted">Gleichstand!</p>
-        <h1 className="text-[clamp(2.4rem,11vw,3.4rem)] leading-none">Stichwahl</h1>
+        <p className="text-lg text-muted">{t.runoff.tie}</p>
+        <h1 className="text-[clamp(2.4rem,11vw,3.4rem)] leading-none">{t.runoff.title}</h1>
         <p className="text-muted">
-          {films.length} Filme liegen gleichauf. Tipp genau einen an. Wenn alle gewählt haben, steht der Gewinner fest.
+          {t.runoff.hint(films.length)}
         </p>
       </section>
 
@@ -53,7 +55,7 @@ export function Runoff({ state, onChange }: { state: RoomState; onChange: () => 
               <motion.button
                 type="button"
                 aria-pressed={active}
-                aria-label={`${f.title} wählen`}
+                aria-label={t.runoff.choose(f.title)}
                 whileTap={{ scale: 0.95 }}
                 animate={{ scale: active ? 1.02 : 1 }}
                 transition={SPRING}
@@ -76,7 +78,7 @@ export function Runoff({ state, onChange }: { state: RoomState; onChange: () => 
                     transition={SPRING}
                     className="absolute top-3 left-3 rounded-md bg-accent px-2 py-0.5 font-display text-lg font-extrabold uppercase text-accent-ink"
                   >
-                    Meine Wahl
+                    {t.runoff.myPick}
                   </motion.span>
                 )}
                 <span className="absolute inset-x-0 bottom-0 p-3">
@@ -92,9 +94,9 @@ export function Runoff({ state, onChange }: { state: RoomState; onChange: () => 
 
       <section className="card flex flex-col gap-3 text-center">
         <p className="font-display text-2xl font-extrabold tabular-nums">
-          {runoff.votes} von {state.participants.length} haben gewählt
+          {t.runoff.progress(runoff.votes, state.participants.length)}
         </p>
-        <p className="text-sm text-muted">Der Zwischenstand bleibt geheim, bis alle durch sind.</p>
+        <p className="text-sm text-muted">{t.runoff.secret}</p>
         {state.me?.isHost && (
           <button
             className="btn-ghost"
@@ -110,7 +112,7 @@ export function Runoff({ state, onChange }: { state: RoomState; onChange: () => 
               }
             }}
           >
-            Stichwahl jetzt beenden
+            {t.runoff.end}
           </button>
         )}
       </section>

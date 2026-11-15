@@ -2,7 +2,8 @@ import "server-only";
 import { db } from "./db";
 import { env } from "./env";
 import { AppError } from "./http";
-import { insertRoom } from "./rooms";
+import { insertRoom, localized } from "./rooms";
+import type { Locale } from "../i18n/config";
 import { posterUrl } from "./tmdb";
 import { parseTvToken, tvToken } from "./tokens";
 import type { Room } from "./session";
@@ -131,7 +132,7 @@ export async function openTvRoom(
  * Öffentlich mit dem Raum-Code (den zeigt der QR-Code ohnehin), deshalb keine Stimmen
  * und keine Rangliste, nur Fortschritt.
  */
-export async function tvRoomState(room: Room) {
+export async function tvRoomState(room: Room, locale: Locale = "de") {
   const [{ data: people, error }, { count: movies, error: mErr }, { data: votes, error: vErr }] = await Promise.all([
     db().from("participants").select("id, name, is_host, genres_done").eq("room_id", room.id).order("joined_at"),
     db().from("room_movies").select("tmdb_id", { count: "exact", head: true }).eq("room_id", room.id),
@@ -147,12 +148,12 @@ export async function tvRoomState(room: Room) {
   if (room.status === "done" && room.winner_tmdb_id) {
     const { data, error: wErr } = await db()
       .from("room_movies")
-      .select("title, poster_path, release_year")
+      .select("title, title_en, poster_path, release_year")
       .eq("room_id", room.id)
       .eq("tmdb_id", room.winner_tmdb_id)
       .maybeSingle();
     if (wErr) throw wErr;
-    if (data) winner = { title: data.title, poster: posterUrl(data.poster_path, "w500"), year: data.release_year };
+    if (data) winner = { title: localized(data, locale).title, poster: posterUrl(data.poster_path, "w500"), year: data.release_year };
   }
 
   return {

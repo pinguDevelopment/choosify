@@ -3,10 +3,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, type AccountInfo } from "@/lib/api";
 import { loadLocalFavorites, saveLocalFavorites } from "@/lib/favorites";
+import { useT } from "@/components/I18nProvider";
 
 export function KontoClient() {
   const [account, setAccount] = useState<AccountInfo | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   const load = useCallback(() => {
     api<{ account: AccountInfo | null }>("/api/konto")
@@ -18,7 +20,7 @@ export function KontoClient() {
   }, []);
   useEffect(load, [load]);
 
-  if (account === undefined) return <p className="text-muted">{error ?? "Lade …"}</p>;
+  if (account === undefined) return <p className="text-muted">{error ?? t.common.loading}</p>;
   if (account === null) return <LoginForm onDone={load} />;
   return <AccountView account={account} reload={load} />;
 }
@@ -29,6 +31,7 @@ function LoginForm({ onDone }: { onDone: () => void }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   async function send(e?: React.FormEvent) {
     e?.preventDefault();
@@ -59,10 +62,10 @@ function LoginForm({ onDone }: { onDone: () => void }) {
   if (!sentTo) {
     return (
       <form className="card flex flex-col gap-3" onSubmit={send}>
-        <h2 className="text-3xl">Anmelden</h2>
-        <p className="text-muted">Ohne Passwort: Wir schicken dir einen Link und einen Code per Mail.</p>
+        <h2 className="text-3xl">{t.account.signIn}</h2>
+        <p className="text-muted">{t.account.noPassword}</p>
         <label className="flex flex-col gap-1.5">
-          <span className="text-muted">E-Mail-Adresse</span>
+          <span className="text-muted">{t.account.email}</span>
           <input
             className="input"
             type="email"
@@ -71,13 +74,13 @@ function LoginForm({ onDone }: { onDone: () => void }) {
             value={email}
             maxLength={254}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="du@beispiel.de"
+            placeholder={t.account.emailPlaceholder}
             required
           />
         </label>
         {error && <p className="text-sm text-no">{error}</p>}
         <button className="btn-primary" disabled={busy || !email.includes("@")}>
-          {busy ? "Schicke Mail …" : "Anmelde-Link schicken"}
+          {busy ? t.account.sending : t.account.send}
         </button>
       </form>
     );
@@ -85,13 +88,12 @@ function LoginForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form className="card flex flex-col gap-3" onSubmit={verify}>
-      <h2 className="text-3xl">Schau in dein Postfach</h2>
+      <h2 className="text-3xl">{t.account.checkInbox}</h2>
       <p className="text-muted">
-        Wir haben eine Mail an <span className="text-text">{sentTo}</span> geschickt. Tipp auf den Link oder gib hier den Code
-        aus der Mail ein. Der Code ist praktisch, wenn die Mail auf einem anderen Gerät ankommt.
+        {t.account.sent(<span className="text-text">{sentTo}</span>)}
       </p>
       <label className="flex flex-col gap-1.5">
-        <span className="text-muted">Code aus der Mail</span>
+        <span className="text-muted">{t.account.code}</span>
         <input
           className="input font-display text-2xl font-extrabold tracking-[0.3em]"
           inputMode="numeric"
@@ -104,17 +106,17 @@ function LoginForm({ onDone }: { onDone: () => void }) {
       </label>
       {error && <p className="text-sm text-no">{error}</p>}
       <button className="btn-primary" disabled={busy || code.length < 6}>
-        {busy ? "Prüfe …" : "Anmelden"}
+        {busy ? t.account.checking : t.account.signIn}
       </button>
       <div className="flex justify-between text-sm">
         <button type="button" className="text-muted underline underline-offset-4" onClick={() => setSentTo(null)}>
-          Andere Adresse
+          {t.account.otherAddress}
         </button>
         <button type="button" className="text-muted underline underline-offset-4" disabled={busy} onClick={() => send()}>
-          Nochmal schicken
+          {t.account.resend}
         </button>
       </div>
-      <p className="text-sm text-muted">Keine Mail da? Schau auch im Spam-Ordner nach.</p>
+      <p className="text-sm text-muted">{t.account.spam}</p>
     </form>
   );
 }
@@ -122,6 +124,7 @@ function LoginForm({ onDone }: { onDone: () => void }) {
 function AccountView({ account, reload }: { account: AccountInfo; reload: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   async function run(fn: () => Promise<unknown>, after: () => void = reload) {
     setBusy(true);
@@ -138,42 +141,41 @@ function AccountView({ account, reload }: { account: AccountInfo; reload: () => 
   return (
     <>
       <section className="card flex flex-col gap-1">
-        <span className="text-sm text-muted">Angemeldet als</span>
+        <span className="text-sm text-muted">{t.account.signedInAs}</span>
         <span className="truncate text-lg font-semibold">{account.email}</span>
       </section>
 
       {account.deviceCrew && (
         <section className="card flex flex-col gap-3 border-accent">
-          <h2 className="text-2xl">Crew von diesem Gerät übernehmen?</h2>
+          <h2 className="text-2xl">{t.account.adoptTitle}</h2>
           <p className="text-muted">
-            Auf diesem Gerät gibt es die Crew <span className="text-text">„{account.deviceCrew.name}“</span>. Übernimm sie in
-            dein Konto, dann sind sie und ihr Abspann auf all deinen Geräten da.
+            {t.account.adoptText(<span className="text-text">{t.account.quote(account.deviceCrew.name)}</span>)}
           </p>
           <button
             className="btn-primary"
             disabled={busy}
             onClick={() => run(() => api("/api/konto", { method: "PATCH", body: { adoptDeviceCrew: true } }))}
           >
-            Ins Konto übernehmen
+            {t.account.adopt}
           </button>
         </section>
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-2xl">Deine Crews</h2>
+        <h2 className="text-2xl">{t.account.crews}</h2>
         {account.crews.length === 0 ? (
           <p className="text-muted">
-            Noch keine. Deine Crew entsteht, sobald du die erste Runde startest.{" "}
+            {t.account.noCrews}{" "}
             <Link href="/" className="underline underline-offset-4">
-              Runde starten
+              {t.common.startRound}
             </Link>
           </p>
         ) : (
           <>
             {account.crews.length > 1 && (
-              <p className="text-sm text-muted">Neue Runden und der Abspann nutzen die ausgewählte Crew.</p>
+              <p className="text-sm text-muted">{t.account.activeHint}</p>
             )}
-            <ul className="flex flex-col gap-2" role="radiogroup" aria-label="Aktive Crew">
+            <ul className="flex flex-col gap-2" role="radiogroup" aria-label={t.account.activeCrew}>
               {account.crews.map((c) => (
                 <li key={c.id}>
                   <button
@@ -186,7 +188,7 @@ function AccountView({ account, reload }: { account: AccountInfo; reload: () => 
                     }`}
                   >
                     <span className="truncate font-semibold">{c.name}</span>
-                    {c.active && <span className="text-sm text-accent">aktiv</span>}
+                    {c.active && <span className="text-sm text-accent">{t.account.active}</span>}
                   </button>
                 </li>
               ))}
@@ -203,14 +205,14 @@ function AccountView({ account, reload }: { account: AccountInfo; reload: () => 
           disabled={busy}
           onClick={() => run(() => api("/api/auth/abmelden", { body: {} }))}
         >
-          Abmelden
+          {t.account.signOut}
         </button>
         <button
           className="text-sm text-muted underline underline-offset-4"
           disabled={busy}
           onClick={() => run(() => api("/api/auth/abmelden", { body: { everywhere: true } }))}
         >
-          Auf allen Geräten abmelden
+          {t.account.signOutAll}
         </button>
       </section>
     </>

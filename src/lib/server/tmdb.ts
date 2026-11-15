@@ -3,6 +3,7 @@ import { z } from "zod";
 import { env, tmdbMock } from "./env";
 import { mockTmdb } from "./tmdb-mock";
 import { discoverParams, featuredRank, type DiscoverOptions, type TmdbMovie, type WatchProviderEntry } from "../candidates";
+import { TMDB_LANGUAGE, type Locale } from "../i18n/config";
 
 const BASE = "https://api.themoviedb.org/3";
 
@@ -43,10 +44,10 @@ const movieSchema = z.object({
 export type Genre = { id: number; name: string };
 export type Provider = { id: number; name: string; logoPath: string | null; priority: number; featured: boolean };
 
-export async function getGenres(): Promise<Genre[]> {
+export async function getGenres(locale: Locale = "de"): Promise<Genre[]> {
   const data = await tmdb(
     "/genre/movie/list",
-    new URLSearchParams({ language: "de-DE" }),
+    new URLSearchParams({ language: TMDB_LANGUAGE[locale] }),
     z.object({ genres: z.array(z.object({ id: z.number().int(), name: z.string().max(60) })) }),
     86400,
   );
@@ -102,17 +103,22 @@ export type MovieDetails = {
   /** englische TMDB-Schlagwörter, werden nur intern auf deutsche Tags abgebildet */
   keywords: string[];
   runtime: number | null;
+  /** englischer Titel und Beschreibung (für die englische Oberfläche) */
+  en: { title: string | null; overview: string | null };
 };
 
 /**
- * Ein Abruf pro Film für alles, was die Karte braucht: Streaming-Verfügbarkeit, Schlagwörter
- * und Laufzeit (TMDB append_to_response statt drei einzelner Abrufe).
+ * Ein Abruf pro Film für alles, was die Karte braucht: Streaming-Verfügbarkeit, Schlagwörter,
+ * Laufzeit und der englische Text (TMDB append_to_response statt mehrerer einzelner Abrufe).
+ * Die deutschen Texte kommen schon aus /discover.
  */
 export async function getMovieDetails(id: number, region: string): Promise<MovieDetails> {
   const data = await tmdb(
     `/movie/${id}`,
-    new URLSearchParams({ append_to_response: "keywords,watch/providers" }),
+    new URLSearchParams({ append_to_response: "keywords,watch/providers", language: TMDB_LANGUAGE.en }),
     z.object({
+      title: z.string().max(300).optional(),
+      overview: z.string().max(5000).nullable().optional(),
       runtime: z.number().int().nonnegative().max(1000).nullable().optional(),
       keywords: z.object({ keywords: z.array(z.object({ name: z.string().max(100) })).max(200).optional() }).optional(),
       "watch/providers": z
@@ -125,6 +131,7 @@ export async function getMovieDetails(id: number, region: string): Promise<Movie
     providers: data["watch/providers"]?.results[region],
     keywords: (data.keywords?.keywords ?? []).map((k) => k.name),
     runtime: data.runtime || null,
+    en: { title: data.title?.trim() || null, overview: data.overview?.trim().slice(0, 2000) || null },
   };
 }
 
@@ -133,10 +140,10 @@ export async function getMovie(id: number): Promise<TmdbMovie> {
   return { ...m, genre_ids: m.genre_ids ?? genres?.map((g) => g.id) ?? [] };
 }
 
-export async function searchMovies(query: string): Promise<TmdbMovie[]> {
+export async function searchMovies(query: string, locale: Locale = "de"): Promise<TmdbMovie[]> {
   const data = await tmdb(
     "/search/movie",
-    new URLSearchParams({ language: "de-DE", query, include_adult: "false" }),
+    new URLSearchParams({ language: TMDB_LANGUAGE[locale], query, include_adult: "false" }),
     z.object({ results: z.array(movieSchema) }),
     600,
   );

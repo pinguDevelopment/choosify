@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Big_Shoulders, Big_Shoulders_Inline, Figtree } from "next/font/google";
+import { I18nProvider } from "@/components/I18nProvider";
+import { LOCALES } from "@/lib/i18n/config";
+import { MESSAGES } from "@/lib/i18n/messages";
+import { APP_NAME, pageLocale } from "@/lib/i18n/page";
 import "./globals.css";
 
 // Big Shoulders: schmale Groteske nach Chicagoer Kino- und Straßenschildern.
@@ -21,19 +25,27 @@ const marquee = Big_Shoulders_Inline({
 });
 const body = Figtree({ variable: "--font-body", subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: "Filmabend",
-  description: "Gemeinsam schnell einen Film finden",
-};
+// Beide Sprachen werden fertig vorgerendert. Welche jemand bekommt, entscheidet src/proxy.ts.
+export function generateStaticParams() {
+  return LOCALES.map((lang) => ({ lang }));
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = MESSAGES[await pageLocale()];
+  return { title: APP_NAME, description: t.meta.description };
+}
 
 export const viewport: Viewport = { themeColor: "#2A0A14", width: "device-width", initialScale: 1 };
 
 // suppressHydrationWarning: Browser-Erweiterungen (z.B. data-qb-installed) setzen Attribute auf <html>,
 // bevor React lädt. Gilt nur für dieses eine Element, nicht für die Kinder.
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
+  const lang = await pageLocale();
   return (
-    <html lang="de" suppressHydrationWarning className={`${display.variable} ${marquee.variable} ${body.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang={lang} suppressHydrationWarning className={`${display.variable} ${marquee.variable} ${body.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col">
+        <I18nProvider locale={lang}>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

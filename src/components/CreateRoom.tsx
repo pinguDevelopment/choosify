@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import { useLayoutEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { ProviderPicker } from "@/components/ProviderPicker";
+import { useT } from "@/components/I18nProvider";
 
 export function CreateRoom() {
   const router = useRouter();
+  const t = useT();
   const [name, setName] = useState("");
   const [picked, setPicked] = useState<number[]>([]);
   const [anySource, setAnySource] = useState(false);
@@ -37,25 +39,25 @@ export function CreateRoom() {
   return (
     <form className="flex flex-col gap-5" onSubmit={submit}>
       <div>
-        <h2 className="text-4xl">Filmabend starten</h2>
+        <h2 className="text-4xl">{t.create.title}</h2>
         {loggedIn && (
           <p className="mt-1 flex gap-1.5 text-sm text-muted">
-            <span className="truncate">Angemeldet als {loggedIn}</span>
+            <span className="truncate">{t.create.signedInAs(loggedIn)}</span>
             <span aria-hidden>·</span>
             <Link href="/konto" className="shrink-0 underline underline-offset-4">
-              Konto
+              {t.common.account}
             </Link>
           </p>
         )}
       </div>
       <label className="flex flex-col gap-1.5">
-        <span className="text-muted">Dein Name</span>
+        <span className="text-muted">{t.common.yourName}</span>
         <input
           className="input"
           value={name}
           maxLength={30}
           onChange={(e) => setName(e.target.value)}
-          placeholder="z.B. Lena"
+          placeholder={t.common.namePlaceholder}
           required
         />
       </label>
@@ -69,7 +71,7 @@ export function CreateRoom() {
       />
       {error && <p className="text-sm text-no">{error}</p>}
       <button className="btn-primary" disabled={busy || !name.trim()}>
-        {busy ? "Runde wird erstellt …" : "Runde erstellen"}
+        {busy ? t.create.creating : t.create.create}
       </button>
     </form>
   );

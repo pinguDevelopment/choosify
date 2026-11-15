@@ -1,4 +1,4 @@
--- Filmabend Update vom 15.11.2026: Fernseher-Link (Home Assistant).
+-- Update vom 15.11.2026: Fernseher-Link (Home Assistant).
 -- Im Supabase SQL Editor komplett einfügen und auf "Run" klicken. Darf mehrfach laufen.
 -- Alternativ einfach supabase/update-auf-aktuell.sql ausführen, das enthält dieses Update auch.
 

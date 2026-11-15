@@ -1,6 +1,7 @@
 "use client";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/components/I18nProvider";
 
 /*
   Kurze Einführung beim ersten Swipen: drei Hinweise (Wischen, Wäre ok, Zurück).
@@ -28,39 +29,12 @@ function markSeen() {
 }
 
 type Demo = "swipe" | "maybe" | "undo";
-const STEPS: { demo: Demo; title: string; text: React.ReactNode }[] = [
-  {
-    demo: "swipe",
-    title: "Rechts Bock, links Nö",
-    text: (
-      <>
-        Wisch die Karte nach <b className="text-yes">rechts</b>, wenn du den Film sehen willst, nach <b className="text-no">links</b>, wenn nicht. Die
-        Knöpfe unten gehen genauso.
-      </>
-    ),
-  },
-  {
-    demo: "maybe",
-    title: "Nach oben: Wäre ok",
-    text: (
-      <>
-        Nicht dein Favorit, aber du würdest mitgucken? Wisch nach <b className="text-accent">oben</b>. So findet ihr schneller einen Film, mit dem alle
-        leben können.
-      </>
-    ),
-  },
-  {
-    demo: "undo",
-    title: "Verwischt? Zurück!",
-    text: (
-      <>
-        Mit <b className="text-text">↺ Zurück</b> holst du die letzte Karte wieder. Am Laptop gehen auch die Pfeiltasten, die Rücktaste nimmt zurück.
-      </>
-    ),
-  },
-];
+// Texte stehen in src/lib/i18n (intro.steps), in derselben Reihenfolge
+const DEMOS: Demo[] = ["swipe", "maybe", "undo"];
 
 export function SwipeIntro({ onClose }: { onClose: () => void }) {
+  const t = useT();
+  const STEPS = t.intro.steps.map((s, i) => ({ ...s, demo: DEMOS[i] }));
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
   const primary = useRef<HTMLButtonElement>(null);
@@ -152,10 +126,10 @@ export function SwipeIntro({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between">
           <p className="text-xs font-bold tracking-[0.18em] text-accent uppercase">
-            Kurz erklärt · {step + 1} von {STEPS.length}
+            {t.intro.stepOf(step + 1, STEPS.length)}
           </p>
           <button type="button" onClick={close} className="rounded-full px-2 py-1 text-sm font-semibold text-muted hover:text-text">
-            Überspringen
+            {t.intro.skip}
           </button>
         </div>
 
@@ -187,12 +161,12 @@ export function SwipeIntro({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <div className="flex flex-1 gap-1.5" role="group" aria-label="Hinweise">
+          <div className="flex flex-1 gap-1.5" role="group" aria-label={t.intro.hints}>
             {STEPS.map((s, i) => (
               <button
                 key={s.demo}
                 type="button"
-                aria-label={`Hinweis ${i + 1}: ${s.title}`}
+                aria-label={t.intro.hint(i + 1, s.title)}
                 aria-current={i === step ? "step" : undefined}
                 onClick={() => go(i)}
                 className="grid h-6 place-items-center"
@@ -207,7 +181,7 @@ export function SwipeIntro({ onClose }: { onClose: () => void }) {
             ))}
           </div>
           <button ref={primary} type="button" className="btn-primary min-w-36" onClick={() => (last ? close() : go(step + 1))}>
-            {last ? "Los geht’s" : "Weiter"}
+            {last ? t.intro.go : t.intro.next}
           </button>
         </div>
       </motion.div>
@@ -271,16 +245,17 @@ function Finger({ ...motionProps }: React.ComponentProps<typeof motion.span>) {
 }
 
 function SwipeDemo() {
+  const t = useT();
   const times = [0, 0.12, 0.32, 0.44, 0.56, 0.76, 0.88, 1];
   const x = [0, 0, 70, 0, 0, -70, 0, 0];
   return (
     <>
       <MiniCard animate={{ x, rotate: x.map((v) => v / 5) }} transition={{ ...LOOP, times }}>
         <Stamp tone="yes" animate={{ opacity: [0, 0, 1, 0, 0, 0, 0, 0] }} transition={{ ...LOOP, times }}>
-          Bock
+          {t.swipe.stampYes}
         </Stamp>
         <Stamp tone="no" animate={{ opacity: [0, 0, 0, 0, 0, 1, 0, 0] }} transition={{ ...LOOP, times }}>
-          Nö
+          {t.swipe.stampNo}
         </Stamp>
       </MiniCard>
       <Finger animate={{ x, opacity: [0, 1, 1, 0, 1, 1, 0, 0] }} transition={{ ...LOOP, times }} />
@@ -291,13 +266,14 @@ function SwipeDemo() {
 }
 
 function MaybeDemo() {
+  const t = useT();
   const times = [0, 0.18, 0.5, 0.62, 1];
   const y = [0, 0, -16, 0, 0];
   return (
     <>
       <MiniCard animate={{ y }} transition={{ ...LOOP, times }}>
         <Stamp tone="accent" animate={{ opacity: [0, 0, 1, 0, 0] }} transition={{ ...LOOP, times }}>
-          Wär ok
+          {t.swipe.stampMaybe}
         </Stamp>
       </MiniCard>
       <Finger animate={{ y: [26, 26, 6, 6, 26], opacity: [0, 1, 1, 0, 0] }} transition={{ ...LOOP, times }} />
@@ -307,6 +283,7 @@ function MaybeDemo() {
 }
 
 function UndoDemo() {
+  const t = useT();
   // Karte fliegt links raus, der Zurück-Knopf wird gedrückt, sie kommt wieder
   const times = [0, 0.15, 0.35, 0.55, 0.62, 0.82, 1];
   return (
@@ -316,7 +293,7 @@ function UndoDemo() {
         transition={{ ...LOOP, times }}
       >
         <Stamp tone="no" animate={{ opacity: [0, 0, 1, 0, 0, 0, 0] }} transition={{ ...LOOP, times }}>
-          Nö
+          {t.swipe.stampNo}
         </Stamp>
       </MiniCard>
       <motion.span
