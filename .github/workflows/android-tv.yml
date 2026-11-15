@@ -37,14 +37,14 @@ jobs:
       run:
         working-directory: android-tv
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       # Optional: eigener Signier-Schlüssel als Secret (base64 der .jks-Datei). Ohne Secrets
       # wird mit dem Sideload-Schlüssel aus android-tv/signing/ signiert.
@@ -67,7 +67,7 @@ jobs:
           ./gradlew --no-daemon assembleRelease
           cp app/build/outputs/apk/release/app-release.apk cinemood-tv.apk
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cinemood-tv-apk
           path: android-tv/cinemood-tv.apk
