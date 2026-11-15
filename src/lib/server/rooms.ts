@@ -24,7 +24,7 @@ export async function createRoom(input: {
   providerIds: number[];
   anySource: boolean;
   crewName?: string;
-}): Promise<{ code: string }> {
+}): Promise<{ code: string; id: string }> {
   const app = env().APP_SECRET;
 
   // Crew des Hosts wiederverwenden oder neu anlegen. Angemeldet gehört sie dem Konto
@@ -50,27 +50,42 @@ export async function createRoom(input: {
     if (error) throw error;
   }
 
+  return insertRoom({ crewId: crew!.id, region: input.region, providerIds: input.providerIds, anySource: input.anySource, hostName: input.hostName });
+}
+
+/**
+ * Legt die Runde an. Mit hostName tritt der Host gleich bei (Cookie in diesem Browser).
+ * Ohne hostName (Runde vom Fernseher) wird die erste Person, die beitritt, zum Host.
+ */
+export async function insertRoom(input: {
+  crewId: string;
+  region: string;
+  providerIds: number[];
+  anySource: boolean;
+  hostName?: string;
+}): Promise<{ code: string; id: string }> {
   // Code-Kollisionen sind extrem unwahrscheinlich, trotzdem abfangen.
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = newRoomCode();
     const { data: room, error } = await db()
       .from("rooms")
-      .insert({ code, crew_id: crew!.id, region: input.region, provider_ids: input.providerIds, any_source: input.anySource })
+      .insert({ code, crew_id: input.crewId, region: input.region, provider_ids: input.providerIds, any_source: input.anySource })
       .select("id")
       .single();
     if (error?.code === PG_UNIQUE) continue;
     if (error) throw error;
+    if (!input.hostName) return { code, id: room.id };
 
     const secret = newSecret();
     const { error: pErr } = await db().from("participants").insert({
       room_id: room.id,
       name: input.hostName,
-      token_hash: hashSecret(secret, app),
+      token_hash: hashSecret(secret, env().APP_SECRET),
       is_host: true,
     });
     if (pErr) throw pErr;
     await setParticipantCookie(code, secret);
-    return { code };
+    return { code, id: room.id };
   }
   throw new Error("Konnte keinen freien Raum-Code finden");
 }
@@ -83,12 +98,20 @@ export async function joinRoom(room: Room, name: string): Promise<void> {
     .eq("room_id", room.id);
   if ((count ?? 0) >= 30) throw new AppError(409, "Die Runde ist voll");
 
+  // Runde vom Fernseher hat noch keinen Host: Wer zuerst beitritt, leitet die Runde.
+  // Der Unique-Index participants_one_host verhindert zwei Hosts, falls zwei gleichzeitig beitreten.
+  const { count: hosts, error: hErr } = await db()
+    .from("participants")
+    .select("id", { count: "exact", head: true })
+    .eq("room_id", room.id)
+    .eq("is_host", true);
+  if (hErr) throw hErr;
   const secret = newSecret();
-  const { error } = await db().from("participants").insert({
-    room_id: room.id,
-    name,
-    token_hash: hashSecret(secret, env().APP_SECRET),
-  });
+  const row = { room_id: room.id, name, token_hash: hashSecret(secret, env().APP_SECRET) };
+  let { error } = await db().from("participants").insert({ ...row, is_host: (hosts ?? 0) === 0 });
+  if (error?.code === PG_UNIQUE && error.message.includes("participants_one_host")) {
+    ({ error } = await db().from("participants").insert({ ...row, is_host: false }));
+  }
   if (error?.code === PG_UNIQUE) throw new AppError(409, "Dieser Name ist schon vergeben");
   if (error) throw error;
   await setParticipantCookie(room.code, secret);

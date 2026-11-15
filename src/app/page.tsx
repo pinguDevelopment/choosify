@@ -23,6 +23,9 @@ export default function Home() {
       <Link href="/konto" className="-mt-7 text-muted underline decoration-line underline-offset-4 hover:text-text">
         Konto: Crews und Abspann auf allen Geräten
       </Link>
+      <Link href="/fernseher" className="-mt-7 text-muted underline decoration-line underline-offset-4 hover:text-text">
+        Fernseher: Runde auf dem großen Bildschirm, auch per Home Assistant
+      </Link>
     </main>
   );
 }

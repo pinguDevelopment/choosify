@@ -73,6 +73,14 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
         >
           {copied ? "Link kopiert" : "Link teilen"}
         </button>
+        <a
+          href={`/r/${state.code}/tv`}
+          target="_blank"
+          rel="noopener"
+          className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text"
+        >
+          Auf dem Fernseher zeigen
+        </a>
       </section>
       )}
 

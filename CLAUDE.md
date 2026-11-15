@@ -22,6 +22,7 @@ Die Oberfläche und alle Texte sind Deutsch. Mit dem Nutzer wird Deutsch gesproc
 - Die Bestätigung des Magic-Links läuft per POST hinter einem Knopf (`/konto/bestaetigen`), weil Link-Scanner in Mailprogrammen GET-Links öffnen und das Token verbrauchen.
 - Schreibende Raum-Endpunkte gehen über `roomAction` (`src/lib/server/room-route.ts`). Das deckt Origin-Check (CSRF), Rate Limit, Raum laden, Cookie prüfen und zod-Validierung ab.
 - **Bewertungen im Abspann** (1 bis 5 Sterne) laufen über einen signierten Link pro Crew und Film (`/bewerten/<crewId>.<tmdbId>.<HMAC>`, `rateToken` in `tokens.ts`), damit Gäste ohne Konto bewerten können. Wer bewertet hat, erkennt der Server am Cookie `fa_rater` (in `ratings` nur der HMAC). Fremde Sterne sieht man erst nach der eigenen Bewertung. Aus den Sternen berechnet `src/lib/taste.ts` den Geschmack der Crew (Genres und Tags), der beim Start einer Runde die Auswahl sanft verschiebt.
+- **Fernseher-Link / Home Assistant**: Pro Crew ein signierter Link `/tv#<crewId>.<version>.<HMAC>` (`tvToken` in `tokens.ts`, Einstellungen in `crew_tv`, Seite `/fernseher`). Der geheime Teil steht hinter `#` und geht nur im Body an `POST /api/tv`, damit er nicht in Logs landet. Der Link öffnet eine Runde ohne Host (die erste Person, die beitritt, wird Host; `participants_one_host` verhindert zwei), mit den gespeicherten Diensten, und nimmt eine laufende Runde wieder. Neue Version = alter Link ungültig. `/r/<code>/tv` ist die Großansicht jeder Runde (nur Fortschritt, keine Stimmen). Home Assistant öffnet nur diesen Link im Browser des Fernsehers, Anleitung in `docs/home-assistant.md`.
 - Rate Limits pro Person (Cookie), nur ersatzweise pro IP. Teure Aktionen nutzen das geteilte Limit in Postgres (`rate_hit`).
 - Entscheidungen trifft der Server: Rangliste und Gewinner kommen aus `room_ranking` bzw. der Stichwahl, nicht aus Client-Daten.
 - Reine Logik ohne Server-Abhängigkeiten liegt in `src/lib/candidates.ts` und `src/lib/ranking.ts` und hat Unit-Tests.
@@ -34,7 +35,7 @@ npm run dev          # Entwicklungsserver
 npm run typecheck    # tsc --noEmit
 npm run lint         # ESLint
 npm test             # Unit-Tests: node --test tests/*.test.ts
-npm run e2e          # Playwright: Ablauf mit 3 Personen + Login auf mehreren Geräten (BASE=http://localhost:3100, SHOTS=<ordner> für Screenshots)
+npm run e2e          # Playwright: Ablauf mit 3 Personen, Login auf mehreren Geräten, Fernseher-Link (BASE=http://localhost:3100, SHOTS=<ordner> für Screenshots)
 psql -f tests/ranking.sql   # Rangliste gegen eine Test-Datenbank prüfen (läuft in einer Transaktion)
 ```
 

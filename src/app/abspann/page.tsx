@@ -10,6 +10,9 @@ export default function AbspannPage() {
       <header className="flex items-center justify-between">
         <Brand />
         <nav className="flex gap-4">
+          <Link href="/fernseher" className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text">
+            Fernseher
+          </Link>
           <Link href="/konto" className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text">
             Konto
           </Link>
