@@ -9,5 +9,8 @@ export async function POST(req: NextRequest) {
   if (blocked) return blocked;
   const body = await parseBody(req, createRoomSchema);
   if ("error" in body) return body.error;
-  return handle(async () => Response.json(await createRoom(body.data), { status: 201 }));
+  return handle(async () => {
+    const { code } = await createRoom(body.data);
+    return Response.json({ code }, { status: 201 });
+  });
 }

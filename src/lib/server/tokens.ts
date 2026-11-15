@@ -55,3 +55,27 @@ export function parseRateToken(token: string, appSecret: string): { crewId: stri
   if (tmdbId <= 0 || want.length !== got.length || !timingSafeEqual(want, got)) return null;
   return { crewId: m[1], tmdbId };
 }
+
+/**
+ * Fernseher-Link einer Crew: "<crewId>.<version>.<Signatur>" (HMAC, 256 Bit).
+ * Wer den Link kennt, kann für diese Crew eine Runde öffnen, mehr nicht.
+ * Eine neue Version macht alle alten Links ungültig.
+ */
+function tvSig(crewId: string, version: number, appSecret: string): string {
+  return createHmac("sha256", appSecret).update(`tv:${crewId}:${version}`).digest("base64url");
+}
+
+export function tvToken(crewId: string, version: number, appSecret: string): string {
+  return `${crewId}.${version}.${tvSig(crewId, version, appSecret)}`;
+}
+
+export function parseTvToken(token: string, appSecret: string): { crewId: string; version: number } | null {
+  if (token.length > 120) return null;
+  const m = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(\d{1,7})\.([A-Za-z0-9_-]{43})$/.exec(token);
+  if (!m) return null;
+  const version = Number(m[2]);
+  const want = Buffer.from(tvSig(m[1], version, appSecret));
+  const got = Buffer.from(m[3]);
+  if (version <= 0 || want.length !== got.length || !timingSafeEqual(want, got)) return null;
+  return { crewId: m[1], version };
+}
