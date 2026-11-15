@@ -9,8 +9,14 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-/** Server-Adresse ändern, z. B. für eine eigene Domain oder einen Server im Heimnetz. */
+/**
+ * Menü der App: Server-Adresse ändern (eigene Domain, Server im Heimnetz), Seite neu laden,
+ * nach Updates suchen.
+ */
 public class SettingsActivity extends Activity {
+    /** Ergebnis an MainActivity: Seite frisch laden. */
+    static final int RESULT_RELOAD = RESULT_FIRST_USER;
+
     private EditText input;
 
     @Override
@@ -24,6 +30,8 @@ public class SettingsActivity extends Activity {
         Button save = findViewById(R.id.save);
         Button reset = findViewById(R.id.reset);
         Button cancel = findViewById(R.id.cancel);
+        Button reload = findViewById(R.id.reload);
+        Button update = findViewById(R.id.check_update);
 
         input.setText(Prefs.baseUrl(this));
         input.setSelection(input.getText().length());
@@ -43,9 +51,15 @@ public class SettingsActivity extends Activity {
         reset.setOnClickListener(v -> {
             Prefs.reset(this);
             Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();
+            setResult(RESULT_RELOAD);
             finish();
         });
         cancel.setOnClickListener(v -> finish());
+        reload.setOnClickListener(v -> {
+            setResult(RESULT_RELOAD);
+            finish();
+        });
+        update.setOnClickListener(v -> Updater.check(this, true));
     }
 
     private void save() {
@@ -56,6 +70,8 @@ public class SettingsActivity extends Activity {
         }
         Prefs.setBaseUrl(this, url);
         Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();
+        // Immer frisch laden, auch wenn die Adresse gleich geblieben ist
+        setResult(RESULT_RELOAD);
         finish();
     }
 }

@@ -71,6 +71,24 @@
                 android:text="@string/settings_cancel" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/reload"
+                style="@style/TvButton"
+                android:text="@string/settings_reload" />
+
+            <Button
+                android:id="@+id/check_update"
+                style="@style/TvButton"
+                android:layout_marginStart="16dp"
+                android:text="@string/settings_check_update" />
+        </LinearLayout>
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

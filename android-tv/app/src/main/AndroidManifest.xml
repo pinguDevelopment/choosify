@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Für die eingebaute Update-Funktion (Android fragt trotzdem jedes Mal nach) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Läuft auf Android TV / Google TV, aber auch auf Tablets und Handys -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -34,6 +36,10 @@
             android:name=".SettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.Cinemood.Settings"
-            android:windowSoftInputMode="stateVisible|adjustResize" />
+            android:windowSoftInputMode="stateHidden|adjustResize" />
+
+        <receiver
+            android:name=".InstallReceiver"
+            android:exported="false" />
     </application>
 </manifest>

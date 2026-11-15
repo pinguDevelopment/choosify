@@ -12,7 +12,7 @@ Fire TV Stick, Sony, Philips, TCL). Samsung-Fernseher (Tizen) und LG (webOS) sin
 
 - Direkter Link zur aktuellen APK:
   `https://github.com/pinguDevelopment/cinemood/releases/download/tv-app/cinemood-tv.apk`
-- Kurz (leitet auf denselben Link weiter): `cinemood.vercel.app/tv-app`
+- Kurz (leitet auf denselben Link weiter): `cinemood.yugusaa.de/tv-app`
 
 Die APK wird bei jeder Änderung an der App automatisch neu gebaut (GitHub Actions, Workflow
 „Android-TV-App“).
@@ -25,7 +25,7 @@ Die APK wird bei jeder Änderung an der App automatisch neu gebaut (GitHub Actio
    **Android TV OS-Build** klicken, um die Entwickleroptionen freizuschalten; danach unter
    **Apps → Sicherheit & Einschränkungen → Unbekannte Apps installieren** Downloader erlauben.
    Bei Fire TV: **Mein Fire TV → Entwickleroptionen → Apps unbekannter Herkunft installieren**.)
-3. Downloader öffnen und als Adresse `cinemood.vercel.app/tv-app` eingeben, dann **Go**.
+3. Downloader öffnen und als Adresse `cinemood.yugusaa.de/tv-app` eingeben, dann **Go**.
 4. Nach dem Download auf **Installieren** drücken. Die APK danach ruhig löschen lassen.
 5. Cinemood erscheint jetzt bei den Apps auf dem Startbildschirm.
 
@@ -43,13 +43,15 @@ Die APK wird bei jeder Änderung an der App automatisch neu gebaut (GitHub Actio
 ## Bedienung
 
 - App starten: Der Code zum Koppeln erscheint sofort. Der Bildschirm bleibt an, solange die App läuft.
-- **Menü-Taste** oder **OK etwa eine Sekunde halten**: Server-Adresse ändern.
+- **Menü-Taste** oder **OK etwa eine Sekunde halten**: Einstellungen öffnen. Dort kannst du die
+  Server-Adresse ändern, die **Seite neu laden** (z. B. wenn sie hängt) und **nach Updates suchen**.
 - **Zurück zweimal drücken**: App beenden.
 - Ist der Server nicht erreichbar, zeigt die App einen Hinweis und versucht es alle 10 Sekunden erneut.
 
 ## Eigene Domain oder eigener Server
 
-Standardmäßig öffnet die App `https://cinemood.vercel.app/tv`. Für eine andere Adresse:
+Standardmäßig öffnet die App `https://cinemood.yugusaa.de/tv`. Wer Cinemood selbst betreibt, trägt
+seine eigene Adresse ein:
 
 - **In der App:** Menü-Taste (oder OK halten), Adresse eintippen, z. B. `film.example.de` oder
   `http://192.168.1.20:3000` für einen Server im Heimnetz, dann **Speichern**. `https://` und `/tv`
@@ -60,8 +62,18 @@ Standardmäßig öffnet die App `https://cinemood.vercel.app/tv`. Für eine ande
 
 ## Updates
 
-Einfach die neue APK genauso installieren wie beim ersten Mal, die alte Version wird ersetzt und die
-Einstellungen bleiben erhalten. Alle Versionen sind mit demselben Schlüssel signiert
+Die App sucht bei jedem Start auf GitHub nach einer neuen Version (Release `tv-app`, Datei
+`version.json`). Gibt es eine, fragt sie: **Installieren** lädt die neue Version herunter, danach fragt
+Android selbst noch einmal „Diese App aktualisieren?“. Die Einstellungen bleiben erhalten. Von Hand geht
+das im Menü mit **Nach Updates suchen**.
+
+Beim ersten Update muss man der App einmal erlauben, Apps zu installieren. Die App öffnet die passende
+Einstellung, wenn es geht. Bei Fire TV: **Mein Fire TV → Entwickleroptionen → Apps unbekannter Herkunft
+installieren → Cinemood** einschalten.
+
+Wer noch eine ältere App ohne den Knopf „Nach Updates suchen“ hat, aktualisiert einmal von Hand: die neue APK
+genauso installieren wie beim ersten Mal, die alte Version wird ersetzt und die Einstellungen bleiben
+erhalten. Alle Versionen sind mit demselben Schlüssel signiert
 (`android-tv/signing/sideload.jks`). Wer einen eigenen, geheimen Schlüssel möchte, legt in GitHub unter
 **Settings → Secrets and variables → Actions** die Secrets `CINEMOOD_KEYSTORE_B64` (die .jks-Datei
 als Base64), `CINEMOOD_KEYSTORE_PASSWORD`, `CINEMOOD_KEY_ALIAS` und `CINEMOOD_KEY_PASSWORD` an. Achtung:

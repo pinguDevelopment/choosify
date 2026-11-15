@@ -9,7 +9,13 @@ def buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
 // Adresse, die beim ersten Start geöffnet wird. Lässt sich in der App jederzeit ändern
 // (Menü-Taste oder OK lange drücken). Für einen eigenen Server beim Bauen z. B.:
 //   CINEMOOD_URL=https://film.example.de ./gradlew assembleRelease
-def defaultUrl = System.getenv("CINEMOOD_URL") ?: "https://cinemood.vercel.app"
+def customUrl = System.getenv("CINEMOOD_URL") ?: ""
+def defaultUrl = customUrl ?: "https://cinemood.yugusaa.de"
+
+// Hier sucht die App nach neuen Versionen (legt der Workflow im Release "tv-app" ab).
+// In einem Fork zeigt das automatisch auf den eigenen Fork.
+def repo = System.getenv("GITHUB_REPOSITORY") ?: "pinguDevelopment/cinemood"
+def updateUrl = "https://github.com/${repo}/releases/download/tv-app/version.json"
 
 android {
     namespace "app.cinemood.tv"
@@ -22,6 +28,9 @@ android {
         versionCode buildNumber
         versionName "1.0.${buildNumber}"
         buildConfigField "String", "DEFAULT_URL", "\"${defaultUrl.replace('"', '')}\""
+        // Eigene Start-Adresse beim Bauen: wird beim ersten Start gespeichert, damit sie ein Update übersteht
+        buildConfigField "boolean", "CUSTOM_DEFAULT", customUrl ? "true" : "false"
+        buildConfigField "String", "UPDATE_URL", "\"${updateUrl.replace('"', '')}\""
     }
 
     buildFeatures {

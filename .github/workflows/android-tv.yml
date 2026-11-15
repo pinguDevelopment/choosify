@@ -2,6 +2,7 @@
 #  - bei jedem Pull Request als Download unter "Artifacts" (zum Testen)
 #  - nach dem Merge auf main zusätzlich als Release "tv-app" mit fester Adresse:
 #    https://github.com/pinguDevelopment/cinemood/releases/download/tv-app/cinemood-tv.apk
+#    Daneben liegt version.json, darüber findet die App selbst neue Versionen.
 name: Android-TV-App
 
 on:
@@ -17,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       url:
-        description: "Server-Adresse, die die App beim ersten Start öffnet (leer = https://cinemood.vercel.app)"
+        description: "Server-Adresse, die die App beim ersten Start öffnet (leer = https://cinemood.yugusaa.de)"
         required: false
         default: ""
 
@@ -78,10 +79,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes="Android-TV-App für Cinemood, Version 1.0.${GITHUB_RUN_NUMBER}. Installation: docs/android-tv.md"
+          version="1.0.${GITHUB_RUN_NUMBER}"
+          notes="Android-TV-App für Cinemood, Version ${version}. Installation: docs/android-tv.md. Installierte Apps finden diese Version von selbst (Update-Prüfung beim Start)."
+          printf '{"versionCode": %s, "versionName": "%s", "apk": "https://github.com/%s/releases/download/tv-app/cinemood-tv.apk"}\n' \
+            "$GITHUB_RUN_NUMBER" "$version" "$GITHUB_REPOSITORY" > version.json
           if gh release view tv-app >/dev/null 2>&1; then
             gh release edit tv-app --notes "$notes"
           else
             gh release create tv-app --title "Cinemood TV-App" --notes "$notes" --latest=false --target "$GITHUB_SHA"
           fi
+          # Erst die APK, dann version.json: Die App soll nie eine Version melden, deren APK noch fehlt
           gh release upload tv-app cinemood-tv.apk --clobber
+          gh release upload tv-app version.json --clobber
