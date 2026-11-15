@@ -62,3 +62,12 @@ export const accountPatchSchema = z
 export const starsSchema = z.number().int().min(1).max(5);
 export const rateSchema = z.object({ name: nameSchema, stars: starsSchema });
 export const removeRatingSchema = z.object({ tmdbId: tmdbIdSchema, name: nameSchema });
+
+// ---- Fernseher / Home Assistant ----
+export const tvTokenSchema = z.string().min(20).max(120).regex(/^[0-9a-f-]{36}\.\d{1,7}\.[A-Za-z0-9_-]{43}$/);
+// fresh = true: immer eine neue Runde (Knopf "Neue Runde" auf dem Fernseher)
+export const tvOpenSchema = z.object({ token: tvTokenSchema, fresh: z.boolean().default(false) });
+export const tvSettingsSchema = z.object({
+  providerIds: z.array(z.number().int().positive().max(1_000_000)).max(30),
+  anySource: z.boolean(),
+});
