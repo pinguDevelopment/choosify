@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import type { RoomState } from "./types";
 import { useT } from "@/components/I18nProvider";
 import { APP_NAME } from "@/lib/i18n/brand";
+import { TvConnect } from "./TvConnect";
 
 function useJoinQr(code: string) {
   const [qr, setQr] = useState<{ url: string; img: string } | null>(null);
@@ -31,6 +32,7 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
     <>
       {compact ? (
         // Beim Genre-Wählen nur eine kleine Einladung, damit die Genres oben sichtbar bleiben
+        <>
         <section className="card flex items-center gap-4 p-3">
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element -- data: URL, kein Optimieren nötig
@@ -53,6 +55,12 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
             </button>
           </div>
         </section>
+        {isHost && (
+          <div className="-mt-3 flex justify-center">
+            <TvConnect code={state.code} small />
+          </div>
+        )}
+        </>
       ) : (
       <section className="card flex flex-col items-center gap-4 text-center">
         <h2 className="text-3xl">{t.lobby.scanAll}</h2>
@@ -76,14 +84,7 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
         >
           {copied ? t.common.linkCopied : t.common.shareLink}
         </button>
-        <a
-          href={`/r/${state.code}/tv`}
-          target="_blank"
-          rel="noopener"
-          className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text"
-        >
-          {t.lobby.showOnTv}
-        </a>
+        {isHost && <TvConnect code={state.code} small />}
       </section>
       )}
 

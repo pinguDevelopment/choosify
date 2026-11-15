@@ -21,10 +21,10 @@ const EN: Record<string, string> = {
   "Keine Crew gefunden": "No crew found",
   "Ungültige Region": "Invalid region",
   "Suchbegriff 2 bis 100 Zeichen": "Search term must be 2 to 100 characters",
-  "Für diese Crew ist noch kein Fernseher eingerichtet": "No TV has been set up for this crew yet",
-  "Dieser Fernseher-Link gilt nicht mehr. Im Web unter „Fernseher“ gibt es den aktuellen.":
-    "This TV link is no longer valid. You’ll find the current one on the “TV” page.",
-  "Gerade wurde schon eine Runde gestartet, bitte neu laden": "A round was just started, please reload",
+  "Gerade ist viel los, bitte gleich nochmal versuchen": "It’s busy right now, please try again in a moment",
+  "Nur der Host kann den Fernseher verbinden": "Only the host can connect the TV",
+  "Diesen Code gibt es nicht (mehr). Schau nochmal auf den Fernseher.":
+    "That code doesn’t exist (anymore). Take another look at the TV.",
   "Gerade wurden zu viele Mails verschickt. Bitte in ein paar Minuten nochmal.":
     "Too many emails were sent just now. Please try again in a few minutes.",
   "Die Anmelde-Mail konnte nicht verschickt werden. Bitte später nochmal versuchen.":

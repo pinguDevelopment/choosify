@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE, isLocale, resolveLocale } from "@/lib/i18n/config";
 
 /**
- * Sprache ohne Sprachkürzel in der Adresse: Die Links (QR-Codes, Fernseher-Link, Bewertungslinks)
+ * Sprache ohne Sprachkürzel in der Adresse: Die Links (QR-Codes, Fernseher-Seite /tv, Bewertungslinks)
  * bleiben gleich. Intern wird jede Seite auf /de/... bzw. /en/... umgeschrieben, damit beide
  * Sprachen fertig vorgerendert ausgeliefert werden können.
  * Reihenfolge: gespeicherte Wahl (Cookie "lang") vor Browsersprache, sonst Englisch.

@@ -1,4 +1,4 @@
-// Ende-zu-Ende-Test: Fernseher-Link (für Home Assistant) und Fernseh-Ansicht.
+// Ende-zu-Ende-Test: Fernseher per Code koppeln und Fernseh-Ansicht.
 // Start: BASE=http://localhost:3100 node tests/e2e/tv.mjs
 import { createRequire } from "node:module";
 const { chromium } = createRequire(import.meta.url)("playwright");
@@ -11,157 +11,136 @@ const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, loc
 const tvSize = { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, locale: "de-DE" };
 const log = (...a) => console.log("✓", ...a);
 const cspErrors = [];
-// Gleiche Seite mit anderem "#" lädt nicht neu, deshalb erst weg und dann hin
-const openFresh = async (pg, url) => {
-  await pg.goto("about:blank");
-  await pg.goto(url);
-};
 const watch = (pg) => pg.on("console", (m) => /Content Security Policy|Refused to/.test(m.text()) && cspErrors.push(m.text()));
+const pairCode = async (pg) => (await pg.getByLabel(/^Kopplungscode/).first().getAttribute("aria-label")).split(" ").pop();
 
-// Ohne Crew: Hinweis, erst eine Runde zu starten
-const owner = await (await browser.newContext(phone)).newPage();
-watch(owner);
-await owner.goto(`${BASE}/fernseher`);
-await owner.getByRole("heading", { name: "Erst eine Runde starten" }).waitFor();
-log("Ohne Crew: Hinweis statt Einrichtung");
+// Anleitung auf der Seite "Fernseher"
+const lena = await (await browser.newContext(phone)).newPage();
+watch(lena);
+await lena.goto(`${BASE}/fernseher`);
+await lena.getByText(/\/tv aufrufen/).waitFor();
+if (shots) await lena.screenshot({ path: `${shots}/fernseher-anleitung.png`, fullPage: true });
+log("Seite Fernseher erklärt das Koppeln");
 
-// Crew entsteht mit der ersten Runde (normaler Web-Ablauf bleibt unverändert)
-await owner.goto(BASE);
-await owner.getByPlaceholder("z.B. Lena").fill("Lena");
-await owner.getByRole("button", { name: "Netflix", exact: true }).waitFor();
-await owner.getByRole("button", { name: "Runde erstellen" }).click();
-await owner.waitForURL(/\/r\/[A-Z0-9]{10}$/);
-const webCode = owner.url().split("/").pop();
-log("Normale Runde im Web erstellt", webCode);
-
-// Normale Runde: Link "Auf dem Fernseher zeigen" öffnet die Großansicht
-await owner.getByRole("button", { name: "Action" }).click();
-await owner.getByRole("button", { name: /Weiter mit/ }).click();
-const tvLink = owner.getByRole("link", { name: "Auf dem Fernseher zeigen" });
-assert.equal(await tvLink.getAttribute("href"), `/r/${webCode}/tv`);
-const tvWeb = await (await browser.newContext(tvSize)).newPage();
-watch(tvWeb);
-await tvWeb.goto(`${BASE}/r/${webCode}/tv`);
-await tvWeb.getByRole("img", { name: /QR-Code/ }).waitFor();
-await tvWeb.getByText("Lena leitet die Runde").waitFor();
-await tvWeb.getByText("1 im Saal").waitFor();
-log("Fernseh-Ansicht einer normalen Runde");
-
-// Fernseher einrichten: Netflix wählen, Link entsteht
-await owner.goto(`${BASE}/fernseher`);
-await owner.getByText(/Crew: Crew von Lena/).waitFor();
-const netflix = owner.getByRole("button", { name: "Netflix", exact: true });
-await netflix.waitFor();
-if ((await netflix.getAttribute("aria-pressed")) !== "true") await netflix.click();
-await owner.getByRole("button", { name: "Fernseher einrichten" }).click();
-const linkBox = owner.getByRole("textbox", { name: "Fernseher-Link" });
-await linkBox.waitFor();
-const link = await linkBox.inputValue();
-assert.match(link, /\/tv#[0-9a-f-]{36}\.1\.[A-Za-z0-9_-]{43}$/);
-if (shots) await owner.screenshot({ path: `${shots}/fernseher-einrichten.png`, fullPage: true });
-// Nach dem Neuladen ist die gespeicherte Auswahl wieder da
-await owner.reload();
-await owner.getByRole("button", { name: "Dienste speichern" }).waitFor();
-await owner.waitForFunction(() =>
-  [...document.querySelectorAll("button[aria-pressed=true]")].some((b) => b.textContent?.includes("Netflix")),
-);
-log("Fernseher eingerichtet, Dienste gespeichert");
-
-// Fernseher öffnet den Link (das macht später Home Assistant): neue Runde ohne Host
-const tv = await (await browser.newContext(tvSize)).newPage();
+// Fernseher öffnet /tv und zeigt einen Code
+const tvCtx = await browser.newContext(tvSize);
+const tv = await tvCtx.newPage();
 watch(tv);
-await openFresh(tv, link);
-await tv.getByRole("img", { name: /QR-Code/ }).waitFor();
-await tv.getByText("Wer zuerst beitritt, leitet die Runde.").waitFor();
-await tv.getByText("Noch niemand im Saal").waitFor();
-const tvCode = (await tv.getByLabel(/Raum-Code/).textContent()).trim();
-assert.notEqual(tvCode, webCode);
-if (shots) await tv.screenshot({ path: `${shots}/fernseher-lobby-leer.png` });
-// Erneut öffnen (z. B. Home Assistant zweimal ausgelöst): dieselbe Runde
+await tv.goto(`${BASE}/tv`);
+await tv.getByRole("heading", { name: "Fernseher verbinden" }).waitFor();
+const code1 = await pairCode(tv);
+assert.match(code1, /^[2-9A-HJKMNP-Z]{6}$/);
+if (shots) await tv.screenshot({ path: `${shots}/fernseher-code.png` });
+// Neu laden: derselbe Code (Geheimnis im localStorage)
 await tv.reload();
-await tv.getByRole("img", { name: /QR-Code/ }).waitFor();
-assert.equal((await tv.getByLabel(/Raum-Code/).textContent()).trim(), tvCode, "laufende Runde wird wiederverwendet");
-log("Fernseher-Link öffnet Runde", tvCode, "und nimmt sie beim Neuladen wieder");
+await tv.getByRole("heading", { name: "Fernseher verbinden" }).waitFor();
+assert.equal(await pairCode(tv), code1, "Code bleibt beim Neuladen");
+log("Fernseher zeigt Code", code1);
 
-// Erste Person wird Host, zweite nicht
-const [ben, cem] = [await (await browser.newContext(phone)).newPage(), await (await browser.newContext(phone)).newPage()];
-for (const [pg, name] of [[ben, "Ben"], [cem, "Cem"]]) {
-  watch(pg);
-  await pg.goto(`${BASE}/r/${tvCode}`);
-  await pg.getByPlaceholder("Dein Name").fill(name);
-  await pg.getByRole("button", { name: "Beitreten" }).click();
-  await pg.getByRole("button", { name: "Action" }).click();
-  await pg.getByRole("button", { name: /Weiter mit/ }).click();
-}
-await ben.getByRole("button", { name: "Swipen starten" }).waitFor();
-await cem.getByText("Warte, bis der Host startet").waitFor();
-const st = await (await ben.request.get(`${BASE}/api/rooms/${tvCode}`)).json();
-assert.deepEqual(st.providerIds, [8], "Dienste vom Fernseher gelten");
-assert.equal(st.me.isHost, true);
+// Host startet Runde und koppelt (schon beim Genre-Wählen möglich)
+await lena.goto(BASE);
+await lena.getByPlaceholder("z.B. Lena").fill("Lena");
+await lena.getByRole("button", { name: "Netflix", exact: true }).waitFor();
+await lena.getByRole("button", { name: "Runde erstellen" }).click();
+await lena.waitForURL(/\/r\/[A-Z0-9]{10}$/);
+const roomCode = lena.url().split("/").pop();
+await lena.getByRole("button", { name: "Auf dem Fernseher zeigen" }).click();
+const input = lena.getByRole("textbox", { name: "Code vom Fernseher" });
+// Falsche Form: Hinweis ohne Anfrage
+await input.fill("abc");
+await lena.getByRole("button", { name: "Verbinden" }).click();
+await lena.getByText("Der Code hat 6 Zeichen").waitFor();
+// Unbekannter Code
+await input.fill(code1 === "222222" ? "333333" : "222222");
+await lena.getByRole("button", { name: "Verbinden" }).click();
+await lena.getByText(/Diesen Code gibt es nicht/).waitFor();
+if (shots) await lena.screenshot({ path: `${shots}/fernseher-eingabe.png` });
+// Richtiger Code, klein und mit Leerzeichen geschrieben
+await input.fill(`${code1.slice(0, 3).toLowerCase()} ${code1.slice(3).toLowerCase()}`);
+await lena.getByRole("button", { name: "Verbinden" }).click();
+await lena.getByRole("button", { name: "Fernseher verbunden ✓" }).waitFor();
+log("Host koppelt mit Code");
+
+// Fernseher schaltet von selbst auf den QR-Code der Runde
+await tv.getByRole("img", { name: /QR-Code zum Beitreten/ }).waitFor({ timeout: 8000 });
+assert.equal((await tv.getByLabel(/Raum-Code/).textContent()).trim(), roomCode);
+await tv.getByText("Lena leitet die Runde").waitFor();
+log("Fernseher zeigt automatisch die Runde");
+
+// Derselbe Code geht kein zweites Mal
+const again = await lena.request.post(`${BASE}/api/rooms/${roomCode}/tv`, { headers: { Origin: BASE }, data: { code: code1 } });
+assert.equal(again.status(), 404, "Code nur einmal nutzbar");
+// Gäste dürfen nicht koppeln, fremde Origin wird abgelehnt
+const ben = await (await browser.newContext(phone)).newPage();
+watch(ben);
+await ben.goto(`${BASE}/r/${roomCode}`);
+await ben.getByPlaceholder("Dein Name").fill("Ben");
+await ben.getByRole("button", { name: "Beitreten" }).click();
+await ben.getByRole("button", { name: "Action" }).click();
+await ben.getByRole("button", { name: /Weiter mit/ }).click();
+await ben.getByText("Warte, bis der Host startet").waitFor();
+assert.equal(await ben.getByRole("button", { name: "Auf dem Fernseher zeigen" }).count(), 0, "Gäste sehen das Koppeln nicht");
+const guest = await ben.request.post(`${BASE}/api/rooms/${roomCode}/tv`, { headers: { Origin: BASE }, data: { code: "222222" } });
+assert.equal(guest.status(), 403);
+const evil = await tv.request.post(`${BASE}/api/tv`, { headers: { Origin: "https://boese.example" }, data: {} });
+assert.equal(evil.status(), 403);
+log("Code nur einmal, nur Host, fremde Origin abgelehnt");
+
+// Neu laden: Fernseher zeigt weiter dieselbe Runde
+await tv.reload();
+await tv.getByRole("img", { name: /QR-Code zum Beitreten/ }).waitFor();
+assert.equal((await tv.getByLabel(/Raum-Code/).textContent()).trim(), roomCode);
 await tv.getByText("2 im Saal").waitFor({ timeout: 8000 });
-await tv.getByText("Ben leitet die Runde").waitFor();
 if (shots) await tv.screenshot({ path: `${shots}/fernseher-lobby.png` });
-log("Erste Person ist Host, Fernseher zeigt alle");
+log("Nach dem Neuladen dieselbe Runde");
 
 // Swipen: Fernseher zeigt Fortschritt
-await ben.getByRole("button", { name: "Swipen starten" }).click();
-await ben.getByRole("button", { name: "Überspringen" }).click();
-await ben.getByRole("dialog").waitFor({ state: "detached" });
+await lena.getByRole("button", { name: "Action" }).click();
+await lena.getByRole("button", { name: /Weiter mit/ }).click();
+await lena.getByRole("button", { name: "Swipen starten" }).click();
+await lena.getByRole("button", { name: "Überspringen" }).click();
+await lena.getByRole("dialog").waitFor({ state: "detached" });
 await tv.getByRole("heading", { name: "Es wird geswipt …" }).waitFor({ timeout: 8000 });
-await ben.getByRole("button", { name: "Ja", exact: true }).click();
-await ben.waitForTimeout(600);
-await ben.getByRole("button", { name: "Nein", exact: true }).click();
-await tv.getByText(/^2 \/ \d+$/).waitFor({ timeout: 8000 });
-if (shots) await tv.screenshot({ path: `${shots}/fernseher-swipen.png` });
+await lena.getByRole("button", { name: "Ja", exact: true }).click();
+await tv.getByText(/^1 \/ \d+$/).waitFor({ timeout: 8000 });
 log("Fernseher zeigt Fortschritt");
 
-// Host beendet: Fernseher zeigt den Gewinner
-await ben.getByRole("button", { name: /Abstimmung beenden/ }).click();
+// Host beendet: Gewinner, darunter der Code für die nächste Runde
+await lena.getByRole("button", { name: /Abstimmung beenden/ }).click();
 await tv.getByText("Heute läuft").waitFor({ timeout: 8000 });
-const winner = (await (await ben.request.get(`${BASE}/api/rooms/${tvCode}/tv`, { headers: { "accept-language": "de-DE" } })).json()).winner;
-assert.ok(winner?.title, "Gewinner steht fest");
-await tv.getByRole("heading", { name: winner.title }).waitFor();
+await tv.getByText(/Nächste Runde\?/).waitFor({ timeout: 8000 });
+const code2 = await pairCode(tv);
+assert.notEqual(code2, code1);
 await tv.waitForTimeout(3500); // Konfetti abwarten
 if (shots) await tv.screenshot({ path: `${shots}/fernseher-gewinner.png` });
-log("Fernseher zeigt Gewinner:", winner.title);
+log("Gewinner mit neuem Code", code2);
 
-// Nach dem Ende: Link öffnet eine neue Runde, ebenso der Knopf
-await tv.reload();
-await tv.getByText("Noch niemand im Saal").waitFor();
-const second = (await tv.getByLabel(/Raum-Code/).textContent()).trim();
-assert.notEqual(second, tvCode, "nach dem Ende gibt es eine neue Runde");
-log("Nach dem Ende startet der Link eine neue Runde");
+// Nächste Runde mit dem neuen Code koppeln
+await lena.goto(BASE);
+await lena.getByPlaceholder("z.B. Lena").fill("Lena");
+await lena.getByRole("button", { name: "Netflix", exact: true }).waitFor();
+await lena.getByRole("button", { name: "Runde erstellen" }).click();
+await lena.waitForURL((u) => /\/r\/[A-Z0-9]{10}$/.test(u.pathname) && !u.pathname.endsWith(roomCode));
+const room2 = lena.url().split("/").pop();
+await lena.getByRole("button", { name: "Auf dem Fernseher zeigen" }).click();
+await lena.getByRole("textbox", { name: "Code vom Fernseher" }).fill(code2);
+await lena.getByRole("button", { name: "Verbinden" }).click();
+await tv.getByText("Noch niemand im Saal").or(tv.getByText("1 im Saal")).waitFor({ timeout: 8000 });
+assert.equal((await tv.getByLabel(/Raum-Code/).textContent()).trim(), room2);
+log("Nächste Runde auf demselben Fernseher");
 
-// Neuer Link: alter geht nicht mehr
-await owner.getByRole("button", { name: /Neuen Link erzeugen/ }).click();
-await owner.waitForFunction((old) => document.querySelector('input[aria-label="Fernseher-Link"]')?.value !== old, link);
-const link2 = await linkBox.inputValue();
-assert.match(link2, /\.2\./);
-await openFresh(tv, link);
-await tv.getByText(/gilt nicht mehr/).waitFor();
-await openFresh(tv, link2);
-await tv.getByRole("img", { name: /QR-Code/ }).waitFor();
-log("Neuer Link ersetzt den alten");
+// Großansicht ohne Code (z. B. Laptop) geht weiter
+const direct = await (await browser.newContext(tvSize)).newPage();
+watch(direct);
+await direct.goto(`${BASE}/r/${room2}/tv`);
+await direct.getByRole("img", { name: /QR-Code zum Beitreten/ }).waitFor();
+log("Direkte Großansicht");
 
-// Gefälschter Link und fremde Origin werden abgelehnt
-const forged = link2.replace(/.$/, (c) => (c === "A" ? "B" : "A"));
-await openFresh(tv, forged);
-await tv.getByText(/gilt nicht mehr/).waitFor();
-const token = link2.split("#")[1];
-const evil = await tv.request.post(`${BASE}/api/tv`, { headers: { Origin: "https://boese.example" }, data: { token } });
-assert.equal(evil.status(), 403);
-log("Gefälschter Link und fremde Origin abgelehnt");
-
-// Ausschalten
-await owner.getByRole("button", { name: "Fernseher-Link ausschalten" }).click();
-await owner.getByRole("button", { name: "Fernseher einrichten" }).waitFor();
-await openFresh(tv, link2);
-await tv.getByText(/gilt nicht mehr/).waitFor();
-log("Ausgeschalteter Link geht nicht mehr");
-
-// Ohne Link
-await tv.goto(`${BASE}/tv`);
-await tv.getByRole("heading", { name: "Hier fehlt der Fernseher-Link" }).waitFor();
+// Englisch
+const en = await (await browser.newContext({ ...tvSize, locale: "en-US" })).newPage();
+await en.goto(`${BASE}/tv`);
+await en.getByRole("heading", { name: "Connect this TV" }).waitFor();
+log("Fernseher-Seite auf Englisch");
 
 assert.deepEqual(cspErrors, [], "CSP-Verstöße");
 log("Keine CSP-Verstöße");
