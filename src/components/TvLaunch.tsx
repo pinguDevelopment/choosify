@@ -3,6 +3,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { TvScreen } from "@/components/TvScreen";
+import { useT } from "@/components/I18nProvider";
+import { APP_NAME } from "@/lib/i18n/brand";
 
 // Der geheime Teil des Links steht hinter dem "#". Das schickt der Browser nie mit,
 // daher landet er nicht in Server-Logs; wir senden ihn nur im Body an /api/tv.
@@ -18,6 +20,7 @@ export function TvLaunch() {
   const [error, setError] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const t = useT();
 
   async function open(fresh: boolean) {
     const token = readToken();
@@ -50,28 +53,28 @@ export function TvLaunch() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col items-center justify-center gap-6 px-4 text-center">
-      <p className="font-display text-4xl font-extrabold tracking-wide text-accent">Filmabend</p>
+      <p className="font-display text-4xl font-extrabold tracking-wide text-accent">{APP_NAME}</p>
       {missing ? (
         <>
-          <h1 className="text-4xl">Hier fehlt der Fernseher-Link</h1>
+          <h1 className="text-4xl">{t.tv.missingTitle}</h1>
           <p className="text-lg text-muted">
-            Den Link für euren Fernseher gibt es auf der Seite{" "}
-            <Link href="/fernseher" className="text-accent underline underline-offset-4">
-              Fernseher
-            </Link>
-            .
+            {t.tv.missingText(
+              <Link href="/fernseher" className="text-accent underline underline-offset-4">
+                {t.common.tv}
+              </Link>,
+            )}
           </p>
         </>
       ) : error ? (
         <>
-          <h1 className="text-4xl">Das hat nicht geklappt</h1>
+          <h1 className="text-4xl">{t.tv.failed}</h1>
           <p className="text-lg text-muted">{error}</p>
           <button className="btn-primary" onClick={() => open(false)} disabled={busy}>
-            Nochmal versuchen
+            {t.tv.retry}
           </button>
         </>
       ) : (
-        <p className="text-2xl text-muted">Runde wird vorbereitet …</p>
+        <p className="text-2xl text-muted">{t.tv.preparing}</p>
       )}
     </main>
   );

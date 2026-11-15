@@ -7,8 +7,8 @@ import assert from "node:assert/strict";
 const BASE = process.env.BASE ?? "http://localhost:3100";
 const shots = process.env.SHOTS;
 const browser = await chromium.launch();
-const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 };
-const tvSize = { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 };
+const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, locale: "de-DE" };
+const tvSize = { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, locale: "de-DE" };
 const log = (...a) => console.log("✓", ...a);
 const cspErrors = [];
 // Gleiche Seite mit anderem "#" lädt nicht neu, deshalb erst weg und dann hin
@@ -118,7 +118,7 @@ log("Fernseher zeigt Fortschritt");
 // Host beendet: Fernseher zeigt den Gewinner
 await ben.getByRole("button", { name: /Abstimmung beenden/ }).click();
 await tv.getByText("Heute läuft").waitFor({ timeout: 8000 });
-const winner = (await (await ben.request.get(`${BASE}/api/rooms/${tvCode}/tv`)).json()).winner;
+const winner = (await (await ben.request.get(`${BASE}/api/rooms/${tvCode}/tv`, { headers: { "accept-language": "de-DE" } })).json()).winner;
 assert.ok(winner?.title, "Gewinner steht fest");
 await tv.getByRole("heading", { name: winner.title }).waitFor();
 await tv.waitForTimeout(3500); // Konfetti abwarten

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { shareLink } from "@/lib/share";
 import { Average, StarsDisplay } from "./Stars";
+import { useT } from "@/components/I18nProvider";
 
 type Entry = {
   tmdbId: number;
@@ -25,6 +26,7 @@ export function AbspannClient() {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   const load = useCallback(() => {
     api<Data>("/api/abspann").then(setData).catch((e) => setError(e.message));
@@ -35,29 +37,29 @@ export function AbspannClient() {
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       api<{ results: Hit[] }>(`/api/tmdb/search?q=${encodeURIComponent(q)}`)
         .then((d) => setHits(d.results))
         .catch((e) => setError(e.message));
     }, 300);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [query]);
 
-  if (!data) return <p className="text-muted">{error ?? "Lade …"}</p>;
+  if (!data) return <p className="text-muted">{error ?? t.common.loading}</p>;
   if (!data.crew) {
     return (
       <div className="card">
-        <h2 className="text-3xl">Noch keine Crew</h2>
-        <p className="mt-2 text-muted">Deine Crew entsteht, sobald du als Host die erste Runde startest. Danach landen eure Filme hier.</p>
+        <h2 className="text-3xl">{t.abspann.noCrewTitle}</h2>
+        <p className="mt-2 text-muted">{t.abspann.noCrewText}</p>
         <Link href="/" className="btn-primary mt-4">
-          Runde starten
+          {t.common.startRound}
         </Link>
         <p className="mt-4 text-sm text-muted">
-          Eure Crew gibt es schon auf einem anderen Gerät?{" "}
-          <Link href="/konto" className="underline underline-offset-4">
-            Melde dich an
-          </Link>
-          , dann ist sie hier auch da.
+          {t.abspann.otherDevice(
+            <Link href="/konto" className="underline underline-offset-4">
+              {t.abspann.signInLink}
+            </Link>,
+          )}
         </p>
       </div>
     );
@@ -68,8 +70,8 @@ export function AbspannClient() {
   return (
     <>
       <section className="flex flex-col gap-3">
-        <h2 className="text-2xl">Film eintragen</h2>
-        <input className="input" placeholder="Titel suchen …" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <h2 className="text-2xl">{t.abspann.add}</h2>
+        <input className="input" placeholder={t.abspann.searchPlaceholder} value={query} onChange={(e) => setQuery(e.target.value)} />
         {query.trim().length >= 2 && hits.length > 0 && (
           <ul className="flex flex-col gap-2">
             {hits.map((h) => (
@@ -92,7 +94,7 @@ export function AbspannClient() {
                   <span className="flex-1">
                     {h.title} <span className="text-muted">{h.year ?? ""}</span>
                   </span>
-                  <span className="pr-2 text-accent">{known.has(h.tmdbId) ? "schon drin" : "Eintragen"}</span>
+                  <span className="pr-2 text-accent">{known.has(h.tmdbId) ? t.abspann.already : t.abspann.addButton}</span>
                 </button>
               </li>
             ))}
@@ -106,7 +108,7 @@ export function AbspannClient() {
         <h2 className="text-2xl">
           {data.crew.name} <span className="text-muted">({data.movies.length})</span>
         </h2>
-        {data.movies.length === 0 && <p className="text-muted">Noch leer. Nach eurem ersten Filmabend steht hier der Gewinner.</p>}
+        {data.movies.length === 0 && <p className="text-muted">{t.abspann.empty}</p>}
         <ul className="flex flex-col gap-2">
           {data.movies.map((m) => (
             <li key={m.tmdbId} className="rounded-xl bg-surface">
@@ -118,7 +120,7 @@ export function AbspannClient() {
                 <Thumb src={m.poster} />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="truncate font-semibold">{m.title}</span>
-                  <span className="text-sm text-muted">{m.year ?? "Jahr unbekannt"}</span>
+                  <span className="text-sm text-muted">{m.year ?? t.common.yearUnknown}</span>
                   <Average value={m.average} count={m.ratings.length} />
                 </span>
                 <span aria-hidden className={`text-muted transition-transform ${open === m.tmdbId ? "rotate-180" : ""}`}>
@@ -135,7 +137,7 @@ export function AbspannClient() {
                           <StarsDisplay value={r.stars} />
                           <button
                             className="px-1 text-muted hover:text-no"
-                            aria-label={`Bewertung von ${r.name} löschen`}
+                            aria-label={t.abspann.deleteRating(r.name)}
                             onClick={async () => {
                               try {
                                 await api("/api/abspann/bewertung", { method: "DELETE", body: { tmdbId: m.tmdbId, name: r.name } });
@@ -151,27 +153,27 @@ export function AbspannClient() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-muted">Noch niemand hat bewertet. Schickt den Link in eure Gruppe.</p>
+                    <p className="text-sm text-muted">{t.abspann.noRatings}</p>
                   )}
                   <div className="flex flex-wrap gap-2">
                     <Link href={`/bewerten/${m.rateToken}`} className="btn-primary flex-1 py-2 text-base">
-                      ★ Bewerten
+                      {t.common.rateButton}
                     </Link>
                     <button
                       className="btn-ghost flex-1 py-2"
                       onClick={async () => {
-                        if ((await shareLink(`${window.location.origin}/bewerten/${m.rateToken}`, `${m.title} bewerten`)) === "copied") {
+                        if ((await shareLink(`${window.location.origin}/bewerten/${m.rateToken}`, t.common.rateTitle(m.title))) === "copied") {
                           setCopied(m.tmdbId);
                           setTimeout(() => setCopied(null), 2000);
                         }
                       }}
                     >
-                      {copied === m.tmdbId ? "Kopiert ✓" : "Link teilen"}
+                      {copied === m.tmdbId ? t.common.copied : t.common.shareLink}
                     </button>
                   </div>
                   <button
                     className="self-start text-sm text-muted underline decoration-line underline-offset-4 hover:text-no"
-                    aria-label={`${m.title} entfernen`}
+                    aria-label={t.abspann.remove(m.title)}
                     onClick={async () => {
                       try {
                         await api("/api/abspann", { method: "DELETE", body: { tmdbId: m.tmdbId } });
@@ -181,7 +183,7 @@ export function AbspannClient() {
                       }
                     }}
                   >
-                    Aus dem Abspann entfernen
+                    {t.abspann.removeButton}
                   </button>
                 </div>
               )}
@@ -196,22 +198,23 @@ export function AbspannClient() {
 
 /** Was die Crew mag, gelernt aus den Sternen. */
 function TasteCard({ taste }: { taste: Taste }) {
+  const t = useT();
   return (
     <section className="card flex flex-col gap-3">
-      <h2 className="text-2xl">Euer Geschmack</h2>
+      <h2 className="text-2xl">{t.abspann.taste}</h2>
       {taste.likes.length || taste.dislikes.length ? (
         <>
-          {taste.likes.length > 0 && <TasteRow label="Mehr davon" items={taste.likes} good />}
-          {taste.dislikes.length > 0 && <TasteRow label="Eher nicht" items={taste.dislikes} />}
+          {taste.likes.length > 0 && <TasteRow label={t.abspann.moreOf} items={taste.likes} good />}
+          {taste.dislikes.length > 0 && <TasteRow label={t.abspann.rather} items={taste.dislikes} />}
           <p className="text-sm text-muted">
-            Gelernt aus {taste.rated} {taste.rated === 1 ? "bewertetem Film" : "bewerteten Filmen"}. Passende Filme schlagen wir öfter vor.
+            {t.abspann.learned(taste.rated)}
           </p>
         </>
       ) : (
         <p className="text-muted">
           {taste.rated
-            ? "Noch kein klares Bild. Bewertet ein paar Filme mehr, dann lernt Filmabend, was euch gefällt."
-            : "Bewertet eure Filme mit Sternen, dann lernt Filmabend, was euch gefällt, und schlägt Passenderes vor."}
+            ? t.abspann.unclear
+            : t.abspann.rateMore}
         </p>
       )}
     </section>

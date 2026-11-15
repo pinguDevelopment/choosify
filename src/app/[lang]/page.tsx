@@ -1,30 +1,33 @@
 import Link from "next/link";
 import { CreateRoom } from "@/components/CreateRoom";
 import { JoinByCode } from "@/components/JoinByCode";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { LoginLinkFallback } from "@/components/LoginLinkFallback";
+import { MESSAGES } from "@/lib/i18n/messages";
+import { APP_NAME, pageLocale } from "@/lib/i18n/page";
 
-export default function Home() {
+export default async function Home() {
+  const t = MESSAGES[await pageLocale()];
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-10 px-4 pt-8 pb-12">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-10 px-4 pt-4 pb-12">
       <header className="flex flex-col gap-5">
+        <LanguageSwitch className="self-end" />
         <div className="marquee text-center">
-          <h1 className="marquee-text text-[clamp(2.6rem,calc(21vw-1.4rem),4.6rem)]">Filmabend</h1>
+          <h1 className="marquee-text text-[clamp(2.6rem,calc(21vw-1.4rem),4.6rem)]">{APP_NAME}</h1>
         </div>
-        <p className="text-lg text-muted">
-          Jeder wischt durch Filme, die bei euch laufen. Am Ende steht der eine, auf den alle Bock haben.
-        </p>
+        <p className="text-lg text-muted">{t.home.tagline}</p>
       </header>
       <LoginLinkFallback />
       <CreateRoom />
       <JoinByCode />
       <Link href="/abspann" className="text-muted underline decoration-line underline-offset-4 hover:text-text">
-        Abspann: eure schon gesehenen Filme
+        {t.home.abspannLink}
       </Link>
       <Link href="/konto" className="-mt-7 text-muted underline decoration-line underline-offset-4 hover:text-text">
-        Konto: Crews und Abspann auf allen Geräten
+        {t.home.accountLink}
       </Link>
       <Link href="/fernseher" className="-mt-7 text-muted underline decoration-line underline-offset-4 hover:text-text">
-        Fernseher: Runde auf dem großen Bildschirm, auch per Home Assistant
+        {t.home.tvLink}
       </Link>
     </main>
   );

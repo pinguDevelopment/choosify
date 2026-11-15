@@ -7,6 +7,7 @@ import { currentCrew } from "@/lib/server/session";
 import { getMovie, getMovieDetails } from "@/lib/server/tmdb";
 import { movieTags } from "@/lib/tags";
 import { releaseYear } from "@/lib/candidates";
+import { requestLocale } from "@/lib/i18n/server";
 
 export async function GET(req: NextRequest) {
   const blocked = limited(req, "abspann", 60);
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
   return handle(async () => {
     const crew = await currentCrew();
     if (!crew) return Response.json({ crew: null, movies: [], taste: null });
-    return Response.json({ crew: { name: crew.name }, ...(await listAbspann(crew.id)) });
+    return Response.json({ crew: { name: crew.name }, ...(await listAbspann(crew.id, await requestLocale())) });
   });
 }
 
@@ -28,12 +29,14 @@ export async function POST(req: NextRequest) {
     if (!crew) return jsonError(401, "Keine Crew gefunden");
     // Filmdaten vom Server bei TMDB holen statt dem Client zu vertrauen.
     const m = await getMovie(body.data.tmdbId);
-    // Schlagwörter für die Tags (fürs Lernen des Geschmacks); ohne sie geht es auch
-    const keywords = await getMovieDetails(m.id, "DE").then((d) => d.keywords, () => []);
+    // Schlagwörter für die Tags (fürs Lernen des Geschmacks) und englischer Titel; ohne sie geht es auch
+    const details = await getMovieDetails(m.id, "DE").catch(() => null);
+    const keywords = details?.keywords ?? [];
     const year = releaseYear(m.release_date);
     await addAbspann(crew.id, {
       tmdbId: m.id,
       title: m.title,
+      titleEn: details?.en.title ?? null,
       posterPath: m.poster_path ?? null,
       year,
       genreIds: m.genre_ids ?? [],

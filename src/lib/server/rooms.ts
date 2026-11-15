@@ -3,7 +3,8 @@ import { db } from "./db";
 import { AppError } from "./http";
 import { env } from "./env";
 import { discover, getMovieDetails, getProviders, posterUrl, type MovieDetails } from "./tmdb";
-import { genreNames, movieTags } from "../tags";
+import { genreNames, movieTags, tagLabel } from "../tags";
+import type { Locale } from "../i18n/config";
 import { hashSecret, newRoomCode, newSecret } from "./tokens";
 import { currentAccount, selectCrew } from "./account";
 import { setCrewCookie, setParticipantCookie, currentCrew, type Participant, type Room } from "./session";
@@ -24,6 +25,7 @@ export async function createRoom(input: {
   providerIds: number[];
   anySource: boolean;
   crewName?: string;
+  locale?: Locale;
 }): Promise<{ code: string; id: string }> {
   const app = env().APP_SECRET;
 
@@ -34,7 +36,7 @@ export async function createRoom(input: {
   if (!crew) {
     const account = await currentAccount();
     const secret = newSecret();
-    const name = input.crewName?.trim() || `Crew von ${input.hostName}`;
+    const name = input.crewName?.trim() || (input.locale === "en" ? `${input.hostName}’s crew` : `Crew von ${input.hostName}`);
     const { data, error } = await db()
       .from("crews")
       .insert({ name, secret_hash: hashSecret(secret, app), account_id: account?.id ?? null })
@@ -217,6 +219,9 @@ export async function startVoting(room: Room, me: Participant) {
     position: i,
     title: m.title,
     overview: m.overview?.slice(0, 2000) ?? null,
+    // Englischer Text aus dem Detail-Abruf; fehlt er, zeigt die englische Oberfläche den deutschen
+    title_en: m.details?.en.title ?? null,
+    overview_en: m.details?.en.overview ?? null,
     poster_path: m.poster_path ?? null,
     release_year: releaseYear(m.release_date),
     vote_average: m.vote_average != null ? Math.round(m.vote_average * 10) / 10 : null,
@@ -342,7 +347,7 @@ export type RankingRow = {
   acceptable: boolean;
 };
 
-export async function roomState(room: Room, me: Participant | null) {
+export async function roomState(room: Room, me: Participant | null, locale: Locale = "de") {
   const { data: people, error } = await db()
     .from("participants")
     .select("id, name, is_host, genres_done")
@@ -363,7 +368,7 @@ export async function roomState(room: Room, me: Participant | null) {
   const [{ data: movies, error: mErr }, { data: votes, error: vErr }] = await Promise.all([
     db()
       .from("room_movies")
-      .select("tmdb_id, title, overview, poster_path, release_year, vote_average, genre_ids, runtime_min, tags")
+      .select("tmdb_id, title, overview, title_en, overview_en, poster_path, release_year, vote_average, genre_ids, runtime_min, tags")
       .eq("room_id", room.id)
       .order("position"),
     db().from("votes").select("participant_id, tmdb_id, choice").eq("room_id", room.id),
@@ -378,7 +383,10 @@ export async function roomState(room: Room, me: Participant | null) {
     if (v.participant_id === me.id) myVotes[v.tmdb_id] = DB_TO_CHOICE[v.choice];
   }
 
-  const [ranking, runoff, rateToken] = await Promise.all([loadRanking(room.id), runoffState(room, me), winnerRateToken(room)]);
+  const [rawRanking, runoff, rateToken] = await Promise.all([loadRanking(room.id), runoffState(room, me), winnerRateToken(room)]);
+  // Titel in der Sprache der Person (die Rangliste aus der Datenbank kennt nur den deutschen)
+  const localTitle = new Map((movies ?? []).map((m) => [m.tmdb_id, localized(m, locale).title]));
+  const ranking = rawRanking.map((r) => ({ ...r, title: localTitle.get(r.tmdbId) ?? r.title }));
 
   return {
     ...base,
@@ -393,17 +401,17 @@ export async function roomState(room: Room, me: Participant | null) {
     movies: personalOrder(
       (movies ?? []).map((m) => ({
         tmdbId: m.tmdb_id,
-        title: m.title,
-        overview: m.overview,
+        ...localized(m, locale),
         poster: posterUrl(m.poster_path, "w500"),
         year: m.release_year,
         rating: m.vote_average != null ? Number(m.vote_average) : null,
         genreIds: m.genre_ids,
-        genres: genreNames(m.genre_ids),
+        genres: genreNames(m.genre_ids, 3, locale),
         // Runden von vor dem Tag-Update haben keine gespeicherten Tags: dann nur aus den Genres
-        tags: (m.tags as string[] | null)?.length
+        tags: ((m.tags as string[] | null)?.length
           ? (m.tags as string[])
-          : movieTags({ genreIds: m.genre_ids, year: m.release_year, rating: m.vote_average != null ? Number(m.vote_average) : null }),
+          : movieTags({ genreIds: m.genre_ids, year: m.release_year, rating: m.vote_average != null ? Number(m.vote_average) : null })
+        ).map((t) => tagLabel(t, locale)),
         runtime: m.runtime_min,
       })),
       me.id,
@@ -414,6 +422,15 @@ export async function roomState(room: Room, me: Participant | null) {
     winner: room.winner_tmdb_id,
     rateToken,
   };
+}
+
+/** Titel und Beschreibung in der gewünschten Sprache, sonst die deutschen von TMDB. */
+export function localized(
+  m: { title: string; overview?: string | null; title_en?: string | null; overview_en?: string | null },
+  locale: Locale,
+): { title: string; overview: string | null } {
+  if (locale === "en") return { title: m.title_en || m.title, overview: m.overview_en || m.overview || null };
+  return { title: m.title, overview: m.overview ?? null };
 }
 
 /** Bewertungslink für den Gewinner, sobald er im Abspann der Crew steht. */
@@ -466,11 +483,11 @@ export type RoomState = Awaited<ReturnType<typeof roomState>>;
 
 // ---- Abspann ----------------------------------------------------------------
 
-export async function listAbspann(crewId: string) {
+export async function listAbspann(crewId: string, locale: Locale = "de") {
   const [{ data, error }, ratings] = await Promise.all([
     db()
       .from("abspann")
-      .select("tmdb_id, title, poster_path, release_year, watched_at, genre_ids, tags")
+      .select("tmdb_id, title, title_en, poster_path, release_year, watched_at, genre_ids, tags")
       .eq("crew_id", crewId)
       .order("watched_at", { ascending: false })
       .limit(500),
@@ -480,12 +497,12 @@ export async function listAbspann(crewId: string) {
   const rows = data ?? [];
   const taste = await loadCrewTaste(crewId, rows);
   return {
-    taste: { rated: taste.rated, ...tasteSummary(taste) },
+    taste: { rated: taste.rated, ...tasteSummary(taste, 4, 0.2, locale) },
     movies: rows.map((r) => {
       const list = ratings.get(r.tmdb_id) ?? [];
       return {
         tmdbId: r.tmdb_id,
-        title: r.title,
+        title: localized(r, locale).title,
         poster: posterUrl(r.poster_path, "w92"),
         year: r.release_year,
         watchedAt: r.watched_at,
@@ -499,12 +516,13 @@ export async function listAbspann(crewId: string) {
 
 export async function addAbspann(
   crewId: string,
-  m: { tmdbId: number; title: string; posterPath: string | null; year: number | null; genreIds: number[]; tags: string[] },
+  m: { tmdbId: number; title: string; titleEn: string | null; posterPath: string | null; year: number | null; genreIds: number[]; tags: string[] },
 ) {
   const { error } = await db().from("abspann").upsert({
     crew_id: crewId,
     tmdb_id: m.tmdbId,
     title: m.title,
+    title_en: m.titleEn,
     poster_path: m.posterPath,
     release_year: m.year,
     genre_ids: m.genreIds.slice(0, 20),
@@ -524,7 +542,7 @@ export async function addWinnerToAbspann(room: Room, tmdbId: number) {
   if (!room.crew_id) return;
   const { data, error } = await db()
     .from("room_movies")
-    .select("tmdb_id, title, poster_path, release_year, genre_ids, tags")
+    .select("tmdb_id, title, title_en, poster_path, release_year, genre_ids, tags")
     .eq("room_id", room.id)
     .eq("tmdb_id", tmdbId)
     .maybeSingle();
@@ -533,6 +551,7 @@ export async function addWinnerToAbspann(room: Room, tmdbId: number) {
   await addAbspann(room.crew_id, {
     tmdbId: data.tmdb_id,
     title: data.title,
+    titleEn: data.title_en,
     posterPath: data.poster_path,
     year: data.release_year,
     genreIds: data.genre_ids ?? [],

@@ -6,6 +6,7 @@ import type { Choice, Movie, RoomState } from "./types";
 import { RankingList } from "./Results";
 import { tiedLeaders } from "@/lib/ranking";
 import { SwipeIntro, introSeen } from "./SwipeIntro";
+import { useT } from "@/components/I18nProvider";
 
 const THRESHOLD = 110; // px, ab hier zählt ein Wisch
 const FLICK = 650; // px/s, ein schneller Schubs reicht auch ohne weiten Weg
@@ -25,6 +26,7 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
   // deshalb darf localStorage direkt im Initialwert gelesen werden.
   const [intro, setIntro] = useState(() => !introSeen());
   const choices = useRef(new Map<number, Choice>());
+  const t = useT();
   const voted = useMemo<Record<number, Choice | null>>(() => ({ ...state.myVotes, ...local }), [state.myVotes, local]);
   const queue = state.movies.filter((m) => voted[m.tmdbId] == null);
   const done = state.movies.length - queue.length;
@@ -102,8 +104,8 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
           onClick={() => setIntro(true)}
           whileTap={{ scale: 0.88 }}
           className="grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 border-line font-display text-lg font-extrabold text-muted hover:border-accent hover:text-accent"
-          aria-label="Kurze Einführung anzeigen"
-          title="Wie funktioniert’s?"
+          aria-label={t.swipe.showIntro}
+          title={t.swipe.howItWorks}
         >
           ?
         </motion.button>
@@ -130,22 +132,22 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
           </div>
           {/* Knopfleiste: Nein | Wäre ok | Ja, jeweils beschriftet. Rückgängig klein links daneben. */}
           <div className="grid grid-cols-[3rem_1fr_1fr_1fr_3rem] items-start justify-items-center gap-1">
-            <VoteButton label="Zurück" ariaLabel="Rückgängig" size="sm" tone="muted" disabled={history.length === 0} onClick={undo} tap={{ scale: 0.88, rotate: -40 }}>
+            <VoteButton label={t.swipe.back} ariaLabel={t.swipe.undo} size="sm" tone="muted" disabled={history.length === 0} onClick={undo} tap={{ scale: 0.88, rotate: -40 }}>
               ↺
             </VoteButton>
-            <VoteButton label="Nein" size="lg" tone="no" onClick={() => cast(queue[0], "no")}>
+            <VoteButton label={t.swipe.no} size="lg" tone="no" onClick={() => cast(queue[0], "no")}>
               ✕
             </VoteButton>
-            <VoteButton label="Wäre ok" size="md" tone="accent" onClick={() => cast(queue[0], "maybe")} tap={{ scale: 0.86, y: -4 }}>
+            <VoteButton label={t.swipe.maybe} size="md" tone="accent" onClick={() => cast(queue[0], "maybe")} tap={{ scale: 0.86, y: -4 }}>
               <span className="font-display text-xl font-extrabold uppercase">ok</span>
             </VoteButton>
-            <VoteButton label="Ja" size="lg" tone="yes" onClick={() => cast(queue[0], "yes")}>
+            <VoteButton label={t.swipe.yes} size="lg" tone="yes" onClick={() => cast(queue[0], "yes")}>
               ♥
             </VoteButton>
             <span aria-hidden />
           </div>
-          <p className="text-center text-sm text-muted sm:hidden">Wischen: ← Nein · ↑ Wäre ok · → Ja</p>
-          <p className="hidden text-center text-sm text-muted sm:block">Am Laptop: ← Nein, ↑ Wäre ok, → Ja. Rücktaste nimmt zurück.</p>
+          <p className="text-center text-sm text-muted sm:hidden">{t.swipe.hintMobile}</p>
+          <p className="hidden text-center text-sm text-muted sm:block">{t.swipe.hintDesktop}</p>
         </>
       ) : (
         <motion.section
@@ -154,15 +156,15 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={SPRING}
         >
-          <h2 className="text-4xl">Du bist durch!</h2>
-          <p className="mt-2 text-muted">Sobald die anderen fertig sind, steht der Gewinner fest. Der Zwischenstand läuft live mit.</p>
+          <h2 className="text-4xl">{t.swipe.doneTitle}</h2>
+          <p className="mt-2 text-muted">{t.swipe.doneText}</p>
         </motion.section>
       )}
       {error && <p className="text-center text-sm text-no">{error}</p>}
 
       {(queue.length === 0 || state.me?.isHost) && (
         <section className="card flex flex-col gap-3">
-          <h2 className="text-2xl">Wer ist wie weit?</h2>
+          <h2 className="text-2xl">{t.swipe.progress}</h2>
           <ul className="flex flex-wrap gap-2 text-sm">
             {state.participants.map((p) => (
               <li key={p.name} className="rounded-full border-2 border-line px-3 py-1">
@@ -182,6 +184,7 @@ function FinishButton({ state, onChange }: { state: RoomState; onChange: () => v
   const [addToAbspann, setAdd] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
   const top = state.ranking[0];
   const tied = tiedLeaders(state.ranking).length;
   return (
@@ -189,7 +192,7 @@ function FinishButton({ state, onChange }: { state: RoomState; onChange: () => v
       {top && (
         <label className="flex items-center gap-2 text-sm text-muted">
           <input type="checkbox" checked={addToAbspann} onChange={(e) => setAdd(e.target.checked)} className="h-4 w-4 accent-[var(--butter)]" />
-          Gewinner danach in den Abspann (schon gesehen)
+          {t.swipe.toAbspann}
         </label>
       )}
       {error && <p className="text-sm text-no">{error}</p>}
@@ -209,10 +212,10 @@ function FinishButton({ state, onChange }: { state: RoomState; onChange: () => v
           }
         }}
       >
-        {tied > 1 ? `Abstimmung beenden, dann Stichwahl (${tied} Filme)` : `Abstimmung beenden${top ? `: ${top.title}` : ""}`}
+        {tied > 1 ? t.swipe.finishTie(tied) : t.swipe.finish(top?.title ?? null)}
       </button>
       {tied > 1 && (
-        <p className="text-center text-sm text-muted">{tied} Filme liegen gleichauf. Danach wählt jede Person genau einen davon, damit nur einer gewinnt.</p>
+        <p className="text-center text-sm text-muted">{t.swipe.tieHint(tied)}</p>
       )}
     </div>
   );
@@ -256,6 +259,7 @@ function SwipeCard({
   onVote: (choice: Choice) => void;
 }) {
   const top = depth === 0;
+  const t = useT();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotate = useTransform(x, [-320, 0, 320], [-16, 0, 16]);
@@ -314,40 +318,40 @@ function SwipeCard({
             className="absolute top-6 left-6 -rotate-12 rounded-lg border-4 border-yes px-3 py-0.5 font-display text-4xl font-extrabold uppercase text-yes"
             style={{ opacity: yesOpacity, scale: yesScale }}
           >
-            Bock
+            {t.swipe.stampYes}
           </motion.span>
           <motion.span
             className="absolute top-6 right-6 rotate-12 rounded-lg border-4 border-no px-3 py-0.5 font-display text-4xl font-extrabold uppercase text-no"
             style={{ opacity: noOpacity, scale: noScale }}
           >
-            Nö
+            {t.swipe.stampNo}
           </motion.span>
           <motion.span
             className="absolute top-1/3 left-1/2 -translate-x-1/2 -rotate-3 whitespace-nowrap rounded-lg border-4 border-accent px-3 py-0.5 font-display text-4xl font-extrabold uppercase text-accent"
             style={{ opacity: maybeOpacity, scale: maybeScale }}
           >
-            Wär ok
+            {t.swipe.stampMaybe}
           </motion.span>
         </>
       )}
       <div className="absolute inset-x-0 bottom-0 p-5">
         {movie.genres?.length > 0 && (
           <p className="mb-1 text-xs font-bold tracking-[0.14em] text-accent uppercase">
-            <span className="sr-only">Genre: </span>
+            <span className="sr-only">{t.swipe.genre}</span>
             {movie.genres.join(" · ")}
           </p>
         )}
         <h3 className="text-4xl">{movie.title}</h3>
         <p className="mt-1.5 flex flex-wrap gap-x-3 text-muted">
           {movie.year && <span>{movie.year}</span>}
-          {movie.runtime != null && <span>{formatRuntime(movie.runtime)}</span>}
+          {movie.runtime != null && <span>{t.swipe.runtime(movie.runtime)}</span>}
           {movie.rating != null && <span className="text-accent">★ {movie.rating.toFixed(1)}</span>}
         </p>
         {movie.overview && (
           <p className={`mt-2 text-[0.95rem] text-text/90 ${movie.tags?.length ? "line-clamp-3" : "line-clamp-4"}`}>{movie.overview}</p>
         )}
         {movie.tags?.length > 0 && (
-          <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Tags">
+          <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={t.swipe.tags}>
             {movie.tags.map((t) => (
               <li key={t} className="rounded-full border border-ticket/45 bg-black/30 px-2.5 py-0.5 text-sm font-semibold text-ticket backdrop-blur-sm">
                 #{t}
@@ -358,13 +362,6 @@ function SwipeCard({
       </div>
     </motion.article>
   );
-}
-
-/** 112 -> "1 Std. 52 Min.", 45 -> "45 Min." */
-function formatRuntime(min: number) {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return h ? `${h} Std.${m ? ` ${m} Min.` : ""}` : `${m} Min.`;
 }
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));

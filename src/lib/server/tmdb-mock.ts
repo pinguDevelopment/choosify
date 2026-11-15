@@ -71,8 +71,11 @@ export function mockTmdb(path: string, params: URLSearchParams): unknown {
     const m = movies.find((x) => x.id === id);
     if (!m) throw new Error("Mock: Film nicht gefunden");
     if (!params.get("append_to_response")) return m;
+    // Der Detail-Abruf kommt auf Englisch (für die englische Oberfläche)
+    const english = params.get("language") === "en-US" ? { title: `Test movie ${id - 999}`, overview: `Description of test movie ${id - 999}.` } : {};
     return {
       ...m,
+      ...english,
       runtime: 85 + (id % 7) * 11,
       keywords: { keywords: mockKeywords[id % mockKeywords.length].map((name) => ({ name })) },
       "watch/providers": watchProviders(id),

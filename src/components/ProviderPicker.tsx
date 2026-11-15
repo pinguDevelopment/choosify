@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api, type AccountInfo, type Provider } from "@/lib/api";
 import { loadLocalFavorites, saveLocalFavorites, type Favorites } from "@/lib/favorites";
 import { Chip } from "@/components/Chip";
+import { useT } from "@/components/I18nProvider";
 
 // Auswahl der Streaming-Dienste mit Suche und Favoriten (☆).
 // Favoriten bleiben auf diesem Gerät gespeichert, mit Konto zusätzlich auf allen Geräten.
@@ -28,6 +29,7 @@ export function ProviderPicker({ picked, setPicked, anySource, setAnySource, pre
   const [favs, setFavs] = useState<Favorites>({ ids: [], other: false });
   const [query, setQuery] = useState("");
   const [loggedIn, setLoggedIn] = useState<string | null>(null);
+  const t = useT();
 
   useEffect(() => {
     // Angemeldet zählen die Favoriten aus dem Konto, sonst die vom Gerät.
@@ -66,7 +68,7 @@ export function ProviderPicker({ picked, setPicked, anySource, setAnySource, pre
     : showAll || featured.length + favList.length === 0
       ? [...favList, ...featured, ...others]
       : [...favList, ...featured, ...others.filter((p) => picked.includes(p.id))];
-  const showOther = !q || norm("Sonstige eigene Quelle").includes(q);
+  const showOther = !q || norm(t.providers.otherSearch).includes(q);
 
   function toggleFav(id: number | "other") {
     const f = favs;
@@ -78,7 +80,7 @@ export function ProviderPicker({ picked, setPicked, anySource, setAnySource, pre
     saveLocalFavorites(next);
     if (loggedIn) {
       api("/api/konto", { method: "PATCH", body: { favorites: next } }).catch(() =>
-        onError?.("Favorit ist nur auf diesem Gerät gespeichert, das Konto war gerade nicht erreichbar."),
+        onError?.(t.providers.favOnlyLocal),
       );
     }
     // Als Favorit markieren heißt auch: jetzt auswählen
@@ -94,19 +96,19 @@ export function ProviderPicker({ picked, setPicked, anySource, setAnySource, pre
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="mb-2 text-muted">
-        <span className="block text-lg text-text">{title ?? "Welche Dienste habt ihr?"}</span>
-        <span className="text-sm">{hint ?? "Wir schlagen nur Filme vor, die dort gerade im Abo laufen. Nichts gewählt = alle bekannten."}</span>
+        <span className="block text-lg text-text">{title ?? t.providers.title}</span>
+        <span className="text-sm">{hint ?? t.providers.hint}</span>
       </legend>
       {providers === null ? (
-        <p className="text-sm text-muted">Lade Anbieter …</p>
+        <p className="text-sm text-muted">{t.providers.loading}</p>
       ) : (
         <>
           {all.length > 0 && (
             <input
               type="search"
               className="input py-2.5"
-              placeholder="Dienst suchen, z. B. Crunchyroll"
-              aria-label="Dienst suchen"
+              placeholder={t.providers.searchPlaceholder}
+              aria-label={t.providers.searchLabel}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -126,36 +128,37 @@ export function ProviderPicker({ picked, setPicked, anySource, setAnySource, pre
             ))}
             {!q && featured.length + favList.length > 0 && others.length > 0 && (
               <button type="button" className="chip text-muted" onClick={() => setShowAll((s) => !s)}>
-                {showAll ? "Weniger anzeigen" : `Mehr anzeigen (+${others.filter((p) => !picked.includes(p.id)).length})`}
+                {showAll ? t.providers.showLess : t.providers.showMore(others.filter((p) => !picked.includes(p.id)).length)}
               </button>
             )}
             {showOther && (
               <span className="inline-flex items-center">
                 <Chip pressed={anySource} onToggle={() => setAnySource((v) => !v)}>
-                  Sonstige / eigene Quelle
+                  {t.providers.other}
                 </Chip>
-                <FavStar name="Sonstige / eigene Quelle" on={favs.other} onToggle={() => toggleFav("other")} />
+                <FavStar name={t.providers.other} on={favs.other} onToggle={() => toggleFav("other")} />
               </span>
             )}
-            {q && visible.length === 0 && !showOther && <p className="text-sm text-muted">Kein Dienst gefunden.</p>}
+            {q && visible.length === 0 && !showOther && <p className="text-sm text-muted">{t.providers.notFound}</p>}
           </div>
-          <p className="text-sm text-muted">Mit ☆ merkst du dir einen Dienst als Favorit. Favoriten stehen oben und sind beim nächsten Mal schon ausgewählt{loggedIn ? ", auf allen deinen Geräten" : ""}.</p>
+          <p className="text-sm text-muted">{t.providers.favHint(!!loggedIn)}</p>
         </>
       )}
       {anySource && (
-        <p className="text-sm text-muted">Es kommen auch Filme, die bei keinem gewählten Dienst im Abo laufen, z. B. für eure eigene Sammlung oder zum Leihen.</p>
+        <p className="text-sm text-muted">{t.providers.anySourceHint}</p>
       )}
     </fieldset>
   );
 }
 
 function FavStar({ name, on, onToggle }: { name: string; on: boolean; onToggle: () => void }) {
+  const t = useT();
   return (
     <motion.button
       type="button"
       aria-pressed={on}
-      aria-label={`${name} als Favorit`}
-      title={on ? "Favorit entfernen" : "Als Favorit merken"}
+      aria-label={t.providers.favLabel(name)}
+      title={on ? t.providers.favRemove : t.providers.favAdd}
       onClick={onToggle}
       whileTap={{ scale: 0.8, rotate: -15 }}
       animate={{ scale: on ? [1, 1.3, 1] : 1 }}

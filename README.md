@@ -1,9 +1,20 @@
-# Filmabend
+# Cinemood
 
 Gemeinsam schnell einen Film finden: Der Host erstellt eine Runde und wählt die Streaming-Anbieter,
 alle joinen per QR-Code, wählen Genres und swipen Filme. Am Ende gewinnt der Film, den alle
 (oder die meisten) sehen wollen. Filme, die die Crew schon gesehen hat, landen im **Abspann**
 und werden nicht mehr vorgeschlagen.
+
+Die Oberfläche gibt es auf Deutsch und Englisch (Sprachauswahl oben auf jeder Seite, Standard nach Browsersprache).
+
+## Sprachen
+
+- Texte: `src/lib/i18n/de.tsx` und `src/lib/i18n/en.tsx` (TypeScript prüft, dass keine Übersetzung fehlt).
+- Fehlermeldungen der API kommen deutsch vom Server und werden im Browser übersetzt (`src/lib/i18n/errors.ts`).
+- Die Adressen haben kein Sprachkürzel: `src/proxy.ts` schreibt intern auf `/de/...` bzw. `/en/...` um
+  (gespeicherte Wahl im Cookie `lang`, sonst Browsersprache, sonst Englisch).
+- Filmtitel und Beschreibungen werden beim Start einer Runde auf Deutsch und Englisch gespeichert,
+  Genres und Tags beim Ausliefern übersetzt.
 
 ## Technik
 

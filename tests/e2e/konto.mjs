@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 const BASE = process.env.BASE ?? "http://localhost:3100";
 const shots = process.env.SHOTS;
 const browser = await chromium.launch();
-const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 };
+const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, locale: "de-DE" };
 const log = (...a) => console.log("✓", ...a);
 const newDevice = async () => (await browser.newContext(phone)).newPage();
 const email = `lena.${Date.now()}@example.org`;
@@ -90,7 +90,7 @@ log("Gerät B: per Magic-Link angemeldet, Crew und Abspann sind da");
 // Favoriten kommen aus dem Konto
 await b.goto(BASE);
 await b.getByText("Angemeldet als").waitFor();
-await b.waitForFunction(() => document.querySelector('button[aria-pressed="true"]')?.textContent?.includes("Netflix"));
+await b.waitForFunction(() => [...document.querySelectorAll('button[aria-pressed="true"]')].some((x) => x.textContent?.includes("Netflix")));
 log("Favoriten auf Gerät B synchron");
 if (shots) await b.screenshot({ path: `${shots}/konto-4-start.png` });
 

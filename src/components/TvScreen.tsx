@@ -4,6 +4,8 @@ import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Confetti } from "@/components/room/Confetti";
+import { useT } from "@/components/I18nProvider";
+import { APP_NAME } from "@/lib/i18n/brand";
 
 // Großansicht für den Fernseher: QR-Code zum Beitreten, wer da ist, Fortschritt beim Swipen
 // und am Ende der Gewinner. Bedienen muss man hier nichts, alles läuft über die Handys.
@@ -21,6 +23,7 @@ export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () =>
   const [state, setState] = useState<TvState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [qr, setQr] = useState<{ url: string; img: string } | null>(null);
+  const t = useT();
 
   useEffect(() => {
     const url = `${window.location.origin}/r/${code}`;
@@ -59,8 +62,8 @@ export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () =>
     <MotionConfig reducedMotion="user">
       <main className="flex min-h-dvh w-full flex-col gap-6 p-[clamp(1rem,3vw,3rem)]">
         <header className="flex items-center justify-between gap-4">
-          <p className="font-display text-[clamp(1.6rem,3vw,3rem)] font-extrabold tracking-wide text-accent">Filmabend</p>
-          <span className="ticket px-5 py-2 text-[clamp(0.9rem,1.6vw,1.4rem)]" aria-label={`Raum-Code ${code}`}>
+          <p className="font-display text-[clamp(1.6rem,3vw,3rem)] font-extrabold tracking-wide text-accent">{APP_NAME}</p>
+          <span className="ticket px-5 py-2 text-[clamp(0.9rem,1.6vw,1.4rem)]" aria-label={t.common.roomCode(code)}>
             {code}
           </span>
         </header>
@@ -74,7 +77,7 @@ export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () =>
                 // eslint-disable-next-line @next/next/no-img-element -- data: URL
                 <img
                   src={qr.img}
-                  alt={`QR-Code zum Beitreten: ${qr.url}`}
+                  alt={t.common.qrJoin(qr.url)}
                   className="aspect-square w-[min(70vw,58vh)] rounded-2xl shadow-[0_0_60px_rgb(255_201_77/0.18)]"
                 />
               ) : (
@@ -83,14 +86,12 @@ export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () =>
               <p className="text-center text-[clamp(0.9rem,1.5vw,1.3rem)] text-muted">{shortUrl}</p>
             </div>
             <div className="flex min-w-0 flex-col gap-5">
-              <h1 className="text-[clamp(2.6rem,6vw,6rem)] leading-none">Handy raus und scannen</h1>
+              <h1 className="text-[clamp(2.6rem,6vw,6rem)] leading-none">{t.tv.scan}</h1>
               <p className="text-[clamp(1.1rem,2vw,1.8rem)] text-muted">
-                {host
-                  ? `${host.name} leitet die Runde und startet das Swipen, wenn alle da sind.`
-                  : "Wer zuerst beitritt, leitet die Runde."}
+                {host ? t.tv.hostLeads(host.name) : t.tv.firstLeads}
               </p>
               <p className="font-display text-[clamp(1.6rem,3vw,2.8rem)] font-extrabold">
-                {people.length === 0 ? "Noch niemand im Saal" : `${people.length} im Saal`}
+                {people.length === 0 ? t.tv.nobody : t.tv.inRoom(people.length)}
               </p>
               <ul className="flex flex-wrap gap-3">
                 <AnimatePresence initial={false}>
@@ -106,7 +107,7 @@ export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () =>
                       }`}
                     >
                       {p.name}
-                      {p.genresDone && <span aria-label="bereit">✓</span>}
+                      {p.genresDone && <span aria-label={t.tv.ready}>✓</span>}
                     </motion.li>
                   ))}
                 </AnimatePresence>
@@ -118,7 +119,7 @@ export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () =>
         {state && (state.status === "voting" || state.status === "runoff") && (
           <section className="flex flex-1 flex-col justify-center gap-8">
             <h1 className="text-[clamp(2.6rem,6vw,6rem)] leading-none">
-              {state.status === "runoff" ? `Stichwahl zwischen ${state.runoffCount} Filmen` : "Es wird geswipt …"}
+              {state.status === "runoff" ? t.tv.runoff(state.runoffCount) : t.tv.swiping}
             </h1>
             {state.status === "voting" ? (
               <ul className="grid gap-4 sm:grid-cols-2">
@@ -140,16 +141,16 @@ export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () =>
                 })}
               </ul>
             ) : (
-              <p className="text-[clamp(1.1rem,2vw,1.8rem)] text-muted">Gleichstand an der Spitze. Jetzt auf dem Handy einen der Filme wählen.</p>
+              <p className="text-[clamp(1.1rem,2vw,1.8rem)] text-muted">{t.tv.runoffHint}</p>
             )}
-            <p className="text-[clamp(1rem,1.6vw,1.4rem)] text-muted">Wer noch mitmachen will: Link öffnen, {shortUrl}</p>
+            <p className="text-[clamp(1rem,1.6vw,1.4rem)] text-muted">{t.tv.lateJoin(shortUrl)}</p>
           </section>
         )}
 
         {state?.status === "done" && (
           <section className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
             {state.winner && <Confetti count={60} />}
-            <p className="text-[clamp(1.2rem,2.2vw,2rem)] text-muted">Heute läuft</p>
+            <p className="text-[clamp(1.2rem,2.2vw,2rem)] text-muted">{t.tv.tonight}</p>
             {state.winner ? (
               <div className="flex flex-col items-center gap-6 md:flex-row md:text-left">
                 {state.winner.poster && (
@@ -162,11 +163,11 @@ export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () =>
                 </div>
               </div>
             ) : (
-              <h1 className="text-[clamp(2.6rem,6vw,6rem)]">Kein Gewinner</h1>
+              <h1 className="text-[clamp(2.6rem,6vw,6rem)]">{t.tv.noWinner}</h1>
             )}
             {onNew && (
               <button className="btn-primary mt-4 text-xl" onClick={onNew} disabled={busyNew}>
-                {busyNew ? "Neue Runde wird erstellt …" : "Neue Runde"}
+                {busyNew ? t.tv.creating : t.common.newRound}
               </button>
             )}
           </section>

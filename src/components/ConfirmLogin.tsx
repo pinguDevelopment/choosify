@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { loadLocalFavorites } from "@/lib/favorites";
+import { useT } from "@/components/I18nProvider";
 
 /** Seite hinter dem Magic-Link. Anmelden erst per Knopf, damit Link-Scanner den Link nicht verbrauchen. */
 export function ConfirmLogin({ tokenHash }: { tokenHash: string | null }) {
   const router = useRouter();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,10 +26,10 @@ export function ConfirmLogin({ tokenHash }: { tokenHash: string | null }) {
   if (!tokenHash) {
     return (
       <div className="card">
-        <h1 className="text-3xl">Link unvollständig</h1>
-        <p className="mt-2 text-muted">Öffne den Link aus der Mail nochmal komplett oder tipp den Code aus der Mail ein.</p>
+        <h1 className="text-3xl">{t.confirm.incompleteTitle}</h1>
+        <p className="mt-2 text-muted">{t.confirm.incompleteText}</p>
         <Link href="/konto" className="btn-primary mt-4">
-          Zur Anmeldung
+          {t.confirm.toLogin}
         </Link>
       </div>
     );
@@ -35,8 +37,8 @@ export function ConfirmLogin({ tokenHash }: { tokenHash: string | null }) {
 
   return (
     <div className="card flex flex-col gap-3">
-      <h1 className="text-3xl">Fast geschafft</h1>
-      <p className="text-muted">Tipp auf den Knopf, um dich auf diesem Gerät anzumelden.</p>
+      <h1 className="text-3xl">{t.confirm.title}</h1>
+      <p className="text-muted">{t.confirm.text}</p>
       {error && <p className="text-sm text-no">{error}</p>}
       <button
         className="btn-primary"
@@ -53,11 +55,11 @@ export function ConfirmLogin({ tokenHash }: { tokenHash: string | null }) {
           }
         }}
       >
-        {busy ? "Melde an …" : "Jetzt anmelden"}
+        {busy ? t.confirm.busy : t.confirm.button}
       </button>
       {error && (
         <Link href="/konto" className="text-center text-sm text-muted underline underline-offset-4">
-          Neuen Link anfordern
+          {t.confirm.newLink}
         </Link>
       )}
     </div>

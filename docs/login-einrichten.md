@@ -22,15 +22,16 @@ Die Prüfung ganz unten muss ein leeres Ergebnis liefern.
 
 **Authentication → URL Configuration**
 
-- **Site URL**: deine Produktions-Adresse, z. B. `https://filmabend.vercel.app`
+- **Site URL**: deine Produktions-Adresse, z. B. `https://cinemood.vercel.app`
 - **Redirect URLs** (jede Zeile einzeln mit *Add URL*):
   - `http://localhost:3000/**` (lokal mit `npm run dev`)
   - `https://*.*.devtunnels.ms/**` (VS-Code-Port-Forwarding, Adressen wie `abc123-3000.euw.devtunnels.ms`)
-  - `https://filmabend-*-steallights-projects.vercel.app/**` (Vercel-Vorschauen pro PR)
-  - `https://filmabend.vercel.app/**` bzw. deine eigene Domain
+  - `https://cinemood-*-steallights-projects.vercel.app/**` (Vercel-Vorschauen pro PR)
+  - `https://cinemood.vercel.app/**` bzw. deine eigene Domain
 
-Die Vercel-Adressen hängen am Namen des Vercel-Projekts. Heißt das Projekt noch `choosify`, lauten sie `choosify.vercel.app`
-bzw. `choosify-*-steallights-projects.vercel.app`. Nach einer Umbenennung oder neuen Domain hier die neuen Adressen eintragen.
+Die Vercel-Adressen hängen am Namen des Vercel-Projekts. Heißt das Projekt noch anders (z. B. `choosify` oder `filmabend`),
+lauten sie entsprechend `choosify.vercel.app` bzw. `choosify-*-steallights-projects.vercel.app`. Nach einer Umbenennung oder
+neuen Domain hier die neuen Adressen eintragen (die alten können stehen bleiben, bis niemand sie mehr nutzt).
 
 Der Link in der Mail führt immer zurück auf die Adresse, auf der die Anmeldung angefordert wurde.
 Steht diese Adresse nicht in der Liste, schickt Supabase den Link auf die Site URL. Die App fängt das auf der Startseite ab,
@@ -41,14 +42,22 @@ aber dann landet man eben auf der Produktion statt lokal.
 **Authentication → Emails → Templates**. Beide Vorlagen **Magic Link** und **Confirm signup** bekommen denselben Inhalt
 (neue Adressen bekommen beim ersten Mal „Confirm signup“, danach „Magic Link“).
 
-Betreff: `Dein Login für Filmabend`
+Supabase kennt nur eine Vorlage für alle, deshalb ist die Mail zweisprachig (Deutsch und Englisch).
+
+Betreff: `Dein Login für Cinemood · Your Cinemood sign-in`
 
 ```html
-<h2>Bei Filmabend anmelden</h2>
+<h2>Bei Cinemood anmelden</h2>
 <p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">Jetzt anmelden</a></p>
 <p>Oder gib diesen Code in der App ein: <strong>{{ .Token }}</strong></p>
 <p>Der Code ist praktisch, wenn die Mail auf einem anderen Gerät ankommt als dem, auf dem du dich anmelden willst.</p>
 <p>Du hast das nicht angefordert? Dann ignoriere diese Mail einfach.</p>
+<hr>
+<h2>Sign in to Cinemood</h2>
+<p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">Sign in now</a></p>
+<p>Or enter this code in the app: <strong>{{ .Token }}</strong></p>
+<p>The code is handy if this email arrives on a different device than the one you want to sign in on.</p>
+<p>Didn’t request this? Just ignore this email.</p>
 ```
 
 Wichtig: `{{ .RedirectTo }}` und `{{ .TokenHash }}` müssen genau so drinstehen. Die Standardvorlage mit `{{ .ConfirmationURL }}`

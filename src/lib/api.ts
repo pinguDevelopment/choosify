@@ -1,4 +1,13 @@
 // Kleiner Client-Helfer für die eigene API.
+import { isLocale, type Locale } from "./i18n/config";
+import { translateError } from "./i18n/errors";
+
+/** Sprache der Seite (steht im lang-Attribut von <html>). */
+const pageLocale = (): Locale => {
+  const l = typeof document !== "undefined" ? document.documentElement.lang : "";
+  return isLocale(l) ? l : "de";
+};
+
 export async function api<T = unknown>(
   url: string,
   init?: { method?: string; body?: unknown },
@@ -10,7 +19,11 @@ export async function api<T = unknown>(
     cache: "no-store",
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `Fehler ${res.status}`);
+  if (!res.ok) {
+    const locale = pageLocale();
+    const msg = (data as { error?: string }).error;
+    throw new Error(msg ? translateError(msg, locale) : locale === "en" ? `Error ${res.status}` : `Fehler ${res.status}`);
+  }
   return data as T;
 }
 

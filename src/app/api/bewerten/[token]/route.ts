@@ -3,6 +3,7 @@ import { checkSameOrigin, clientIp, limited, limitedSharedKey, parseBody } from 
 import { handle } from "@/lib/server/http";
 import { rate, ratingPage } from "@/lib/server/ratings";
 import { rateSchema } from "@/lib/server/schemas";
+import { requestLocale } from "@/lib/i18n/server";
 
 // Bewerten per Link oder QR-Code, ohne Konto. Der Link ist signiert (siehe tokens.ts).
 
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/bewerten/[to
   const blocked = limited(req, "rate-read", 60);
   if (blocked) return blocked;
   const { token } = await ctx.params;
-  return handle(async () => Response.json(await ratingPage(token)));
+  return handle(async () => Response.json(await ratingPage(token, await requestLocale())));
 }
 
 export async function POST(req: NextRequest, ctx: RouteContext<"/api/bewerten/[token]">) {
@@ -26,6 +27,6 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/bewerten/[t
   const { token } = await ctx.params;
   return handle(async () => {
     await rate(token, body.data.name, body.data.stars);
-    return Response.json(await ratingPage(token));
+    return Response.json(await ratingPage(token, await requestLocale()));
   });
 }

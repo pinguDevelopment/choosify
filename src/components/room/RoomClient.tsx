@@ -10,12 +10,15 @@ import { Lobby } from "./Lobby";
 import { Swiper } from "./Swiper";
 import { Results } from "./Results";
 import { Runoff } from "./Runoff";
+import { useT } from "@/components/I18nProvider";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
 
 const POLL_MS = 2500;
 
 export function RoomClient({ code }: { code: string }) {
   const [state, setState] = useState<RoomState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   const refresh = useCallback(async () => {
     try {
@@ -46,13 +49,13 @@ export function RoomClient({ code }: { code: string }) {
     body = error ? (
       <div className="card text-center">
         <h1 className="text-3xl">{error}</h1>
-        <p className="mt-2 text-muted">Runden laufen nach 24 Stunden ab. Prüf den Code oder lass dir einen neuen Link schicken.</p>
+        <p className="mt-2 text-muted">{t.room.expired}</p>
         <Link href="/" className="btn-ghost mt-4">
-          Zur Startseite
+          {t.common.toHome}
         </Link>
       </div>
     ) : (
-      <p className="text-center text-muted">Lade Runde …</p>
+      <p className="text-center text-muted">{t.common.loadingRound}</p>
     );
   } else if (!state.me) {
     body = <JoinForm code={code} status={state.status} onJoined={refresh} />;
@@ -75,9 +78,12 @@ export function RoomClient({ code }: { code: string }) {
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-5">
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between gap-3">
         <Brand />
-        <TicketCode code={code} />
+        <div className="flex items-center gap-3">
+          <LanguageSwitch />
+          <TicketCode code={code} />
+        </div>
       </header>
       {body}
       {state && error && <p className="text-center text-sm text-no">{error}</p>}

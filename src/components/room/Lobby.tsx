@@ -4,6 +4,8 @@ import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { RoomState } from "./types";
+import { useT } from "@/components/I18nProvider";
+import { APP_NAME } from "@/lib/i18n/brand";
 
 function useJoinQr(code: string) {
   const [qr, setQr] = useState<{ url: string; img: string } | null>(null);
@@ -21,6 +23,7 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const t = useT();
   const isHost = state.me?.isHost;
   const ready = state.participants.filter((p) => p.genresDone).length;
 
@@ -31,31 +34,31 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
         <section className="card flex items-center gap-4 p-3">
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element -- data: URL, kein Optimieren nötig
-            <img src={qr.img} alt={`QR-Code zum Beitreten: ${qr.url}`} className="h-24 w-24 rounded-lg" />
+            <img src={qr.img} alt={t.common.qrJoin(qr.url)} className="h-24 w-24 rounded-lg" />
           ) : (
             <div className="h-24 w-24 animate-pulse rounded-lg bg-surface-2" />
           )}
           <div className="flex min-w-0 flex-col items-start gap-1.5">
-            <p className="font-display text-xl font-extrabold leading-tight">Freunde reinholen</p>
-            <p className="text-sm text-muted">{state.participants.length} im Saal · QR scannen lassen</p>
+            <p className="font-display text-xl font-extrabold leading-tight">{t.lobby.invite}</p>
+            <p className="text-sm text-muted">{t.lobby.inviteHint(state.participants.length)}</p>
             <button type="button" className="text-sm text-accent underline decoration-accent/40 underline-offset-4" onClick={async () => {
             if (!qr) return;
-            if (navigator.share) await navigator.share({ title: "Filmabend", url: qr.url }).catch(() => {});
+            if (navigator.share) await navigator.share({ title: APP_NAME, url: qr.url }).catch(() => {});
             else {
               await navigator.clipboard.writeText(qr.url);
               setCopied(true);
             }
           }}>
-              {copied ? "Link kopiert" : "Link teilen"}
+              {copied ? t.common.linkCopied : t.common.shareLink}
             </button>
           </div>
         </section>
       ) : (
       <section className="card flex flex-col items-center gap-4 text-center">
-        <h2 className="text-3xl">Alle mal scannen</h2>
+        <h2 className="text-3xl">{t.lobby.scanAll}</h2>
         {qr ? (
           // eslint-disable-next-line @next/next/no-img-element -- data: URL, kein Optimieren nötig
-          <img src={qr.img} alt={`QR-Code zum Beitreten: ${qr.url}`} className="w-56 rounded-xl" />
+          <img src={qr.img} alt={t.common.qrJoin(qr.url)} className="w-56 rounded-xl" />
         ) : (
           <div className="h-56 w-56 animate-pulse rounded-xl bg-surface-2" />
         )}
@@ -64,14 +67,14 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
           className="text-muted underline decoration-line underline-offset-4 hover:text-text"
           onClick={async () => {
             if (!qr) return;
-            if (navigator.share) await navigator.share({ title: "Filmabend", url: qr.url }).catch(() => {});
+            if (navigator.share) await navigator.share({ title: APP_NAME, url: qr.url }).catch(() => {});
             else {
               await navigator.clipboard.writeText(qr.url);
               setCopied(true);
             }
           }}
         >
-          {copied ? "Link kopiert" : "Link teilen"}
+          {copied ? t.common.linkCopied : t.common.shareLink}
         </button>
         <a
           href={`/r/${state.code}/tv`}
@@ -79,7 +82,7 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
           rel="noopener"
           className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text"
         >
-          Auf dem Fernseher zeigen
+          {t.lobby.showOnTv}
         </a>
       </section>
       )}
@@ -87,8 +90,8 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
       {!compact && (
         <section className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-3xl">{state.participants.length} im Saal</h2>
-            <span className="text-muted">{ready} bereit</span>
+            <h2 className="text-3xl">{t.lobby.inRoom(state.participants.length)}</h2>
+            <span className="text-muted">{t.lobby.readyCount(ready)}</span>
           </div>
           <ul className="flex flex-col">
             <AnimatePresence initial={false}>
@@ -111,7 +114,7 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
                 </span>
                 <span className="min-w-0 flex-1 truncate">
                   {p.name}
-                  {p.isHost && <span className="ml-2 rounded-full border border-accent/50 px-2 py-0.5 align-middle text-xs text-accent">Host</span>}
+                  {p.isHost && <span className="ml-2 rounded-full border border-accent/50 px-2 py-0.5 align-middle text-xs text-accent">{t.lobby.host}</span>}
                 </span>
                 <motion.span
                   key={p.genresDone ? "ready" : "wait"}
@@ -120,7 +123,7 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
                   transition={{ type: "spring", stiffness: 500, damping: 22 }}
                   className={p.genresDone ? "text-yes" : "text-muted"}
                 >
-                  {p.genresDone ? "bereit" : "wählt noch"}
+                  {p.genresDone ? t.lobby.ready : t.lobby.choosing}
                 </motion.span>
               </motion.li>
             ))}
@@ -145,14 +148,14 @@ export function Lobby({ state, onChange, compact }: { state: RoomState; onChange
                   }
                 }}
               >
-                {busy ? "Filme werden gesucht …" : "Swipen starten"}
+                {busy ? t.lobby.searching : t.lobby.start}
               </button>
               {ready < state.participants.length && (
-                <p className="text-center text-sm text-muted">Du kannst auch starten, wenn noch nicht alle bereit sind.</p>
+                <p className="text-center text-sm text-muted">{t.lobby.startAnyway}</p>
               )}
             </>
           ) : (
-            <p className="text-center text-muted">Warte, bis der Host startet …</p>
+            <p className="text-center text-muted">{t.lobby.waiting}</p>
           )}
         </section>
       )}

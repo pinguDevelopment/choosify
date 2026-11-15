@@ -7,6 +7,7 @@ import { cookieBase } from "./cookie-opts";
 import { posterUrl } from "./tmdb";
 import { hashSecret, newSecret, parseRateToken, rateToken } from "./tokens";
 import { averageStars, crewTaste, EMPTY_TASTE, type Taste } from "../taste";
+import type { Locale } from "../i18n/config";
 
 // Wer bewertet, bekommt ein eigenes Token (256 Bit) im httpOnly-Cookie. Damit kann dieselbe
 // Person ihre Sterne später ändern, ohne Konto. In der Datenbank steht nur der HMAC.
@@ -26,12 +27,12 @@ async function raterHash(create: boolean): Promise<string | null> {
 export const rateLink = (crewId: string, tmdbId: number) => rateToken(crewId, tmdbId, env().APP_SECRET);
 
 /** Film und Crew zu einem Bewertungslink, oder 404, wenn der Link falsch ist oder der Film nicht mehr im Abspann steht. */
-async function loadTarget(token: string) {
+async function loadTarget(token: string, locale: Locale) {
   const t = parseRateToken(token, env().APP_SECRET);
   if (!t) throw new AppError(404, "Dieser Bewertungslink ist ungültig");
   const { data, error } = await db()
     .from("abspann")
-    .select("crew_id, tmdb_id, title, poster_path, release_year, crews(name)")
+    .select("crew_id, tmdb_id, title, title_en, poster_path, release_year, crews(name)")
     .eq("crew_id", t.crewId)
     .eq("tmdb_id", t.tmdbId)
     .maybeSingle();
@@ -41,7 +42,7 @@ async function loadTarget(token: string) {
   return {
     crewId: data.crew_id as string,
     tmdbId: data.tmdb_id as number,
-    film: { title: data.title as string, poster: posterUrl(data.poster_path, "w342"), year: data.release_year as number | null },
+    film: { title: (locale === "en" && (data.title_en as string | null)) || (data.title as string), poster: posterUrl(data.poster_path, "w342"), year: data.release_year as number | null },
     crewName: crew?.name ?? "Crew",
   };
 }
@@ -63,8 +64,8 @@ async function ratingsOf(crewId: string, tmdbId: number): Promise<RatingRow[]> {
  * Seite zum Bewerten. Die Sterne der anderen sieht man erst nach der eigenen Bewertung,
  * damit niemand sich nach den anderen richtet.
  */
-export async function ratingPage(token: string) {
-  const target = await loadTarget(token);
+export async function ratingPage(token: string, locale: Locale = "de") {
+  const target = await loadTarget(token, locale);
   const [rows, me] = await Promise.all([ratingsOf(target.crewId, target.tmdbId), raterHash(false)]);
   const mine = rows.find((r) => r.rater_hash === me) ?? null;
   return {
@@ -78,7 +79,7 @@ export async function ratingPage(token: string) {
 }
 
 export async function rate(token: string, name: string, stars: number) {
-  const target = await loadTarget(token);
+  const target = await loadTarget(token, "de");
   const hash = (await raterHash(true))!;
   const { error } = await db().from("ratings").upsert({
     crew_id: target.crewId,
