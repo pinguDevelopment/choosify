@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { TvLaunch } from "@/components/TvLaunch";
+import { TvPair } from "@/components/TvPair";
 import { pageTitle } from "@/lib/i18n/page";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: await pageTitle("tv"), robots: { index: false } };
 }
 
-/** Fernseher-Link der Crew (/tv#<link>): öffnet eine Runde und zeigt den QR-Code. */
+/** Seite für den Browser des Fernsehers: zeigt einen Code zum Koppeln, danach die Runde. */
 export default function TvPage() {
-  return <TvLaunch />;
+  return <TvPair />;
 }

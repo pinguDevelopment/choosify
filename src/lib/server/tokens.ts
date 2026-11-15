@@ -56,26 +56,20 @@ export function parseRateToken(token: string, appSecret: string): { crewId: stri
   return { crewId: m[1], tmdbId };
 }
 
-/**
- * Fernseher-Link einer Crew: "<crewId>.<version>.<Signatur>" (HMAC, 256 Bit).
- * Wer den Link kennt, kann für diese Crew eine Runde öffnen, mehr nicht.
- * Eine neue Version macht alle alten Links ungültig.
- */
-function tvSig(crewId: string, version: number, appSecret: string): string {
-  return createHmac("sha256", appSecret).update(`tv:${crewId}:${version}`).digest("base64url");
+/** Kopplungscode für den Fernseher, z.B. "K7Q2XH" (6 Zeichen, ~30 Bit, gilt nur 15 Minuten). */
+export const PAIR_CODE_LENGTH = 6;
+
+export function newPairCode(): string {
+  let s = "";
+  for (let i = 0; i < PAIR_CODE_LENGTH; i++) s += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
+  return s;
 }
 
-export function tvToken(crewId: string, version: number, appSecret: string): string {
-  return `${crewId}.${version}.${tvSig(crewId, version, appSecret)}`;
+/** Eingabe vom Handy aufräumen: Leerzeichen und Striche weg, Großbuchstaben. */
+export function normalizePairCode(v: string): string {
+  return v.toUpperCase().replace(/[\s-]/g, "");
 }
 
-export function parseTvToken(token: string, appSecret: string): { crewId: string; version: number } | null {
-  if (token.length > 120) return null;
-  const m = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(\d{1,7})\.([A-Za-z0-9_-]{43})$/.exec(token);
-  if (!m) return null;
-  const version = Number(m[2]);
-  const want = Buffer.from(tvSig(m[1], version, appSecret));
-  const got = Buffer.from(m[3]);
-  if (version <= 0 || want.length !== got.length || !timingSafeEqual(want, got)) return null;
-  return { crewId: m[1], version };
+export function isPairCode(v: string): boolean {
+  return v.length === PAIR_CODE_LENGTH && [...v].every((c) => CODE_ALPHABET.includes(c));
 }

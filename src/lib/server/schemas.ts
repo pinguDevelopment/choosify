@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { isPairCode, normalizePairCode } from "./tokens";
 
 // Namen: keine Steuerzeichen, getrimmt, 1-30 Zeichen.
 export const nameSchema = z
@@ -63,11 +64,14 @@ export const starsSchema = z.number().int().min(1).max(5);
 export const rateSchema = z.object({ name: nameSchema, stars: starsSchema });
 export const removeRatingSchema = z.object({ tmdbId: tmdbIdSchema, name: nameSchema });
 
-// ---- Fernseher / Home Assistant ----
-export const tvTokenSchema = z.string().min(20).max(120).regex(/^[0-9a-f-]{36}\.\d{1,7}\.[A-Za-z0-9_-]{43}$/);
-// fresh = true: immer eine neue Runde (Knopf "Neue Runde" auf dem Fernseher)
-export const tvOpenSchema = z.object({ token: tvTokenSchema, fresh: z.boolean().default(false) });
-export const tvSettingsSchema = z.object({
-  providerIds: z.array(z.number().int().positive().max(1_000_000)).max(30),
-  anySource: z.boolean(),
+// ---- Fernseher koppeln ----
+// Code vom Fernseher, wie ihn der Host eintippt (Leerzeichen, Striche und Kleinbuchstaben sind ok)
+export const tvPairSchema = z.object({
+  code: z
+    .string()
+    .max(20)
+    .transform(normalizePairCode)
+    .refine(isPairCode),
 });
+// Geheimnis des Fernsehers (newSecret: 32 Byte base64url)
+export const tvStatusSchema = z.object({ secret: z.string().regex(/^[A-Za-z0-9_-]{43}$/) });

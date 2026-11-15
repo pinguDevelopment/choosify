@@ -1,7 +1,7 @@
 "use client";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import QRCode from "qrcode";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { api } from "@/lib/api";
 import { Confetti } from "@/components/room/Confetti";
 import { useT } from "@/components/I18nProvider";
@@ -19,7 +19,17 @@ type TvState = {
   winner: { title: string; poster: string | null; year: number | null } | null;
 };
 
-export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () => void; busyNew?: boolean }) {
+export function TvScreen({
+  code,
+  onStatus,
+  footer,
+}: {
+  code: string;
+  /** Meldet den Stand der Runde (z. B. damit der Fernseher nach dem Ende einen neuen Code holt). */
+  onStatus?: (status: TvState["status"]) => void;
+  /** Zusatz unter dem Gewinner, z. B. der Code für die nächste Runde. */
+  footer?: ReactNode;
+}) {
   const [state, setState] = useState<TvState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [qr, setQr] = useState<{ url: string; img: string } | null>(null);
@@ -53,6 +63,11 @@ export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () =>
       clearTimeout(timer);
     };
   }, [code]);
+
+  const status = state?.status;
+  useEffect(() => {
+    if (status) onStatus?.(status);
+  }, [status, onStatus]);
 
   const people = state?.participants ?? [];
   const host = people.find((p) => p.isHost);
@@ -165,11 +180,7 @@ export function TvScreen({ code, onNew, busyNew }: { code: string; onNew?: () =>
             ) : (
               <h1 className="text-[clamp(2.6rem,6vw,6rem)]">{t.tv.noWinner}</h1>
             )}
-            {onNew && (
-              <button className="btn-primary mt-4 text-xl" onClick={onNew} disabled={busyNew}>
-                {busyNew ? t.tv.creating : t.common.newRound}
-              </button>
-            )}
+            {footer}
           </section>
         )}
       </main>
