@@ -26,7 +26,7 @@ Die Oberfläche gibt es auf Deutsch und Englisch (Sprachauswahl oben auf jeder S
 
 ## Datenbank wählen
 
-| `DATABASE` | Wofür | Login per Mail | Tabellen anlegen |
+| `DATABASE` | Wofür | Login (Google / Mail) | Tabellen anlegen |
 | --- | --- | --- | --- |
 | `supabase` (Standard) | Vercel | ja | SQL aus `supabase/` im Supabase SQL Editor |
 | `mariadb` / `mysql` | eigener Server | nein | macht die App selbst |
@@ -35,6 +35,12 @@ Die Oberfläche gibt es auf Deutsch und Englisch (Sprachauswahl oben auf jeder S
 
 Verbindung über `DATABASE_URL` (bei SQLite stattdessen `SQLITE_FILE`). Selbst hosten mit Docker:
 siehe [docs/self-hosting.md](docs/self-hosting.md).
+
+## Apps
+
+- Handy (Android): [docs/android-app.md](docs/android-app.md), Download unter `/handy-app`
+- Fernseher (Android TV / Fire TV): [docs/android-tv.md](docs/android-tv.md), Download unter `/tv-app`
+- Login mit Google oder Mail einrichten: [docs/login-einrichten.md](docs/login-einrichten.md)
 
 ## Sicherheitsmodell (Kurzfassung)
 

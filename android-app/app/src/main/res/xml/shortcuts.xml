@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App-Symbol lange drücken: Einstellungen (Server-Adresse, Updates) -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="settings"
+        android:shortcutLongLabel="@string/settings_title"
+        android:shortcutShortLabel="@string/settings_title">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="app.cinemood.handy.SettingsActivity"
+            android:targetPackage="app.cinemood.handy" />
+    </shortcut>
+</shortcuts>

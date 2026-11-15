@@ -293,6 +293,9 @@ export const de = {
     intro:
       "Freiwillig und nur für Hosts: Mit Konto sind eure Crews, der Abspann und deine Lieblingsdienste auf jedem Gerät da. Gäste brauchen weiterhin nur ihren Namen.",
     signIn: "Anmelden",
+    google: "Mit Google anmelden",
+    googleFailed: "Die Anmeldung mit Google hat nicht geklappt. Versuch es nochmal oder nimm die Mail.",
+    orMail: "oder per Mail",
     noPassword: "Ohne Passwort: Wir schicken dir einen Link und einen Code per Mail.",
     email: "E-Mail-Adresse",
     emailPlaceholder: "du@beispiel.de",

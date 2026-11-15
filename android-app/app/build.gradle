@@ -1,0 +1,73 @@
+plugins {
+    id "com.android.application"
+}
+
+// Versionsnummer kommt aus GitHub Actions (fortlaufende Build-Nummer),
+// damit eine neue APK die alte beim Installieren einfach ersetzt.
+def buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
+// Adresse, die beim ersten Start geöffnet wird. Lässt sich in der App ändern
+// (App-Symbol lange drücken → Einstellungen). Für einen eigenen Server beim Bauen z. B.:
+//   CINEMOOD_URL=https://film.example.de ./gradlew assembleRelease
+def customUrl = System.getenv("CINEMOOD_URL") ?: ""
+def defaultUrl = customUrl ?: "https://cinemood.yugusaa.de"
+
+// Hier sucht die App nach neuen Versionen (legt der Workflow im Release "handy-app" ab).
+// In einem Fork zeigt das automatisch auf den eigenen Fork.
+def repo = System.getenv("GITHUB_REPOSITORY") ?: "pinguDevelopment/cinemood"
+def updateUrl = "https://github.com/${repo}/releases/download/handy-app/version.json"
+
+android {
+    namespace "app.cinemood.handy"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "app.cinemood.handy"
+        minSdk 23
+        targetSdk 35
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+        buildConfigField "String", "DEFAULT_URL", "\"${defaultUrl.replace('"', '')}\""
+        // Eigene Start-Adresse beim Bauen: wird beim ersten Start gespeichert, damit sie ein Update übersteht
+        buildConfigField "boolean", "CUSTOM_DEFAULT", customUrl ? "true" : "false"
+        buildConfigField "String", "UPDATE_URL", "\"${updateUrl.replace('"', '')}\""
+        // Links auf diese Adresse (QR-Codes der Runden) öffnen direkt in der App
+        manifestPlaceholders = [appHost: new URI(defaultUrl).host]
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            // Eigener Schlüssel über GitHub-Secrets möglich, sonst der Sideload-Schlüssel im Repo.
+            // Wichtig ist nur, dass jede Version mit demselben Schlüssel signiert ist,
+            // sonst lässt Android kein Update über die alte App zu.
+            def ks = System.getenv("CINEMOOD_KEYSTORE")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("CINEMOOD_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CINEMOOD_KEY_ALIAS")
+                keyPassword System.getenv("CINEMOOD_KEY_PASSWORD")
+            } else {
+                storeFile rootProject.file("../android-tv/signing/sideload.jks")
+                storePassword "cinemood-sideload"
+                keyAlias "cinemood"
+                keyPassword "cinemood-sideload"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

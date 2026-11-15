@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#2a0a14</color>
+    <color name="bg_light">#3d1220</color>
+    <color name="gold">#ffc94d</color>
+    <color name="cream">#f6e7da</color>
+    <color name="cream_dim">#c9b3a6</color>
+</resources>

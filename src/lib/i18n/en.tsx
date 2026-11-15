@@ -290,6 +290,9 @@ export const en: Messages = {
     intro:
       "Optional and only for hosts: with an account, your crews, the credits and your favorite services are there on every device. Guests still only need their name.",
     signIn: "Sign in",
+    google: "Sign in with Google",
+    googleFailed: "Signing in with Google didn’t work. Try again or use email instead.",
+    orMail: "or by email",
     noPassword: "No password: we’ll email you a link and a code.",
     email: "Email address",
     emailPlaceholder: "you@example.com",

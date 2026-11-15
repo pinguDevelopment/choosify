@@ -1,9 +1,14 @@
-# Login per Magic-Link einrichten (Supabase)
+# Login einrichten: Google und Magic-Link (Supabase)
 
 Das Konto ist freiwillig und nur für Hosts gedacht. Gäste treten weiterhin nur mit ihrem Namen bei.
 Mit Konto sind Crews, Abspann und Lieblingsdienste auf jedem Gerät da.
 
 Neue Umgebungsvariablen braucht es nicht. Der Server nutzt die vorhandene `SUPABASE_URL` und den Service-Role-Key.
+
+Es gibt zwei Wege zur Anmeldung, beide führen zum selben Konto, wenn die E-Mail-Adresse gleich ist:
+
+- **Mit Google** (empfohlen): kein Mailversand nötig, funktioniert auch in der Handy-App. Einrichtung: [unten](#google-login-einrichten).
+- **Per Mail** (Link oder Code): braucht für mehr als ein paar Test-Mails einen eigenen SMTP-Dienst (Schritt 5).
 
 ## 1. Datenbank aktualisieren (vor dem Merge!)
 
@@ -82,3 +87,53 @@ Das SMTP-Passwort gehört nur ins Supabase-Dashboard, nicht ins Repo und nicht i
 4. Auf einem zweiten Gerät anmelden: Crew, Abspann und Lieblingsdienste sind da.
 
 Lokal ohne echte Mails: `AUTH_MOCK=1` in `.env.local`. Dann ist der Code immer `123456` und der Link steht im Server-Log.
+
+## Google-Login einrichten
+
+Dauert etwa 10 Minuten. Du brauchst ein Google-Konto und Zugang zum Supabase-Dashboard.
+Client-ID und Client-Secret gehören nur ins Supabase-Dashboard, nicht ins Repo und nicht in den Chat.
+
+### A. Callback-Adresse in Supabase nachschauen
+
+**Authentication → Sign In / Providers → Google** öffnen (noch nicht einschalten). Dort steht unter
+**Callback URL (for OAuth)** eine Adresse wie `https://<dein-projekt>.supabase.co/auth/v1/callback`. Kopieren.
+
+### B. Google Cloud Console
+
+1. [console.cloud.google.com](https://console.cloud.google.com) öffnen und oben ein neues Projekt anlegen,
+   z. B. „Cinemood“.
+2. Links **APIs & Dienste → OAuth-Zustimmungsbildschirm** (heißt teils auch **Google Auth Platform**) →
+   **Jetzt starten**:
+   - App-Name: `Cinemood`, Support-E-Mail: deine Adresse
+   - Zielgruppe: **Extern**
+   - Kontaktdaten: deine Adresse, Richtlinie bestätigen, **Erstellen**
+3. Unter **Zielgruppe** auf **App veröffentlichen** drücken (Status „In Produktion“). Sonst können sich nur
+   ausdrücklich eingetragene Testnutzer anmelden. Eine Prüfung durch Google ist nicht nötig, weil Cinemood
+   nur Name und E-Mail-Adresse abfragt.
+4. **Clients → Client erstellen**:
+   - Anwendungstyp: **Webanwendung**, Name: `Cinemood`
+   - **Autorisierte JavaScript-Quellen**: `https://cinemood.yugusaa.de`
+   - **Autorisierte Weiterleitungs-URIs**: die Callback-Adresse aus Schritt A
+   - **Erstellen**. Google zeigt jetzt **Client-ID** und **Clientschlüssel** (Client Secret).
+
+Für die Handy-App braucht es in Google nichts Zusätzliches: Sie meldet sich über den Browser an, genau wie die Webseite.
+
+### C. Supabase
+
+1. **Authentication → Sign In / Providers → Google**: einschalten, **Client ID** und **Client Secret** aus B.4
+   einfügen, **Save**.
+2. **Authentication → URL Configuration → Redirect URLs**: Es muss eine Zeile für deine Domain geben, z. B.
+   `https://cinemood.yugusaa.de/**` (siehe Schritt 3 oben). Die App leitet nach Google auf
+   `/api/auth/google/zurueck` zurück, das deckt `/**` ab.
+
+### D. Ausprobieren
+
+Nach spätestens 5 Minuten zeigt `/konto` den Knopf **Mit Google anmelden** (der Server fragt Supabase,
+ob Google eingeschaltet ist, und merkt sich die Antwort kurz). Antippen, Google-Konto wählen, fertig.
+
+Hast du dich vorher schon per Mail angemeldet und nimmst bei Google dieselbe Adresse, landest du im selben
+Konto mit denselben Crews. In der Fernseher-App gibt es keinen Google-Knopf, weil Google die Anmeldung dort
+nicht zulässt (am Fernseher braucht es auch kein Konto).
+
+Lokal ohne Google: Mit `AUTH_MOCK=1` springt `/api/auth/google?mock=du@example.org` direkt zurück und meldet
+mit dieser Adresse an (nur für Tests, wirkt nie in Produktion).
