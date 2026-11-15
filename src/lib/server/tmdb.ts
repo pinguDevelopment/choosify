@@ -135,6 +135,122 @@ export async function getMovieDetails(id: number, region: string): Promise<Movie
   };
 }
 
+// ---- Detailansicht (Antippen einer Votekarte) ----
+
+export type MovieInfo = {
+  tmdbId: number;
+  title: string;
+  originalTitle: string | null;
+  tagline: string | null;
+  overview: string | null;
+  year: number | null;
+  runtime: number | null;
+  rating: number | null;
+  voteCount: number | null;
+  genres: string[];
+  countries: string[];
+  directors: string[];
+  cast: { name: string; character: string | null; photo: string | null }[];
+  backdrop: string | null;
+  poster: string | null;
+  /** YouTube-Video-ID des besten Trailers, sonst null */
+  trailerKey: string | null;
+  /** IMDb-ID wie "tt0133093", sonst null */
+  imdbId: string | null;
+};
+
+const videoSchema = z.object({
+  key: z.string().max(40),
+  site: z.string().max(40),
+  type: z.string().max(40),
+  official: z.boolean().optional(),
+  iso_639_1: z.string().max(10).nullable().optional(),
+});
+type Video = z.infer<typeof videoSchema>;
+
+const YOUTUBE_KEY = /^[A-Za-z0-9_-]{6,20}$/;
+const IMDB_ID = /^tt\d{5,10}$/;
+
+/** Bester Trailer: YouTube, echter Trailer vor Teaser, Sprache der Oberfläche, offiziell. */
+export function pickTrailer(videos: Video[], lang: string): string | null {
+  const score = (v: Video) =>
+    (v.type === "Trailer" ? 8 : v.type === "Teaser" ? 4 : 0) + (v.iso_639_1 === lang ? 2 : 0) + (v.official ? 1 : 0);
+  const best = videos
+    .filter((v) => v.site === "YouTube" && YOUTUBE_KEY.test(v.key) && (v.type === "Trailer" || v.type === "Teaser"))
+    .sort((a, b) => score(b) - score(a))[0];
+  return best?.key ?? null;
+}
+
+/**
+ * Alles für die Detailansicht in einem Abruf: Besetzung, Regie, Trailer und IMDb-ID.
+ * Trailer gibt es oft nur auf Englisch, deshalb werden englische immer mit abgefragt.
+ */
+export async function getMovieInfo(id: number, locale: Locale): Promise<MovieInfo> {
+  const lang = locale === "en" ? "en" : "de";
+  const data = await tmdb(
+    `/movie/${id}`,
+    new URLSearchParams({
+      append_to_response: "credits,videos",
+      language: TMDB_LANGUAGE[locale],
+      include_video_language: lang === "en" ? "en,null" : "de,en,null",
+    }),
+    z.object({
+      id: z.number().int().positive(),
+      title: z.string().max(300),
+      original_title: z.string().max(300).optional(),
+      tagline: z.string().max(500).nullable().optional(),
+      overview: z.string().max(5000).nullable().optional(),
+      release_date: z.string().max(20).optional(),
+      runtime: z.number().int().nonnegative().max(1000).nullable().optional(),
+      vote_average: z.number().optional(),
+      vote_count: z.number().optional(),
+      imdb_id: z.string().max(20).nullable().optional(),
+      poster_path: posterPath,
+      backdrop_path: posterPath,
+      genres: z.array(z.object({ name: z.string().max(60) })).max(20).optional(),
+      production_countries: z.array(z.object({ name: z.string().max(80) })).max(30).optional(),
+      credits: z
+        .object({
+          cast: z
+            .array(z.object({ name: z.string().max(200), character: z.string().max(300).nullable().optional(), profile_path: posterPath, order: z.number().optional() }))
+            .optional(),
+          crew: z.array(z.object({ name: z.string().max(200), job: z.string().max(100).optional() })).optional(),
+        })
+        .optional(),
+      videos: z.object({ results: z.array(videoSchema).max(200) }).optional(),
+    }),
+    21600,
+  );
+  const year = Number(data.release_date?.slice(0, 4));
+  const cast = (data.credits?.cast ?? [])
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .slice(0, 12)
+    .map((c) => ({ name: c.name, character: c.character?.trim() || null, photo: profileUrl(c.profile_path) }));
+  const directors = [...new Set((data.credits?.crew ?? []).filter((c) => c.job === "Director").map((c) => c.name))].slice(0, 3);
+  return {
+    tmdbId: data.id,
+    title: data.title,
+    originalTitle: data.original_title && data.original_title !== data.title ? data.original_title : null,
+    tagline: data.tagline?.trim() || null,
+    overview: data.overview?.trim() || null,
+    year: Number.isInteger(year) && year > 1800 ? year : null,
+    runtime: data.runtime || null,
+    rating: data.vote_count ? Math.round((data.vote_average ?? 0) * 10) / 10 : null,
+    voteCount: data.vote_count ?? null,
+    genres: (data.genres ?? []).map((g) => g.name).slice(0, 5),
+    countries: (data.production_countries ?? []).map((c) => c.name).slice(0, 3),
+    directors,
+    cast,
+    backdrop: data.backdrop_path ? `https://image.tmdb.org/t/p/w780${data.backdrop_path}` : null,
+    poster: posterUrl(data.poster_path, "w342"),
+    trailerKey: pickTrailer(data.videos?.results ?? [], lang),
+    imdbId: data.imdb_id && IMDB_ID.test(data.imdb_id) ? data.imdb_id : null,
+  };
+}
+
+const profileUrl = (path: string | null | undefined) => (path ? `https://image.tmdb.org/t/p/w185${path}` : null);
+
 export async function getMovie(id: number): Promise<TmdbMovie> {
   const { genres, ...m } = await tmdb(`/movie/${id}`, new URLSearchParams({ language: "de-DE" }), movieSchema, 86400);
   return { ...m, genre_ids: m.genre_ids ?? genres?.map((g) => g.id) ?? [] };

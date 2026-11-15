@@ -1,11 +1,12 @@
 "use client";
 import { AnimatePresence, MotionConfig, motion, useMotionValue, useTransform, type PanInfo } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { Choice, Movie, RoomState } from "./types";
 import { RankingList } from "./Results";
 import { tiedLeaders } from "@/lib/ranking";
 import { SwipeIntro, introSeen } from "./SwipeIntro";
+import { MovieSheet } from "./MovieSheet";
 import { useT } from "@/components/I18nProvider";
 
 const THRESHOLD = 110; // px, ab hier zählt ein Wisch
@@ -25,6 +26,9 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
   // Einführung beim ersten Mal. Der Swiper rendert nie auf dem Server (erst nach dem Laden der Runde),
   // deshalb darf localStorage direkt im Initialwert gelesen werden.
   const [intro, setIntro] = useState(() => !introSeen());
+  // Detailansicht der obersten Karte (Antippen, "Mehr Infos" oder Taste I)
+  const [details, setDetails] = useState<Movie | null>(null);
+  const closeDetails = useCallback(() => setDetails(null), []);
   const choices = useRef(new Map<number, Choice>());
   const t = useT();
   const voted = useMemo<Record<number, Choice | null>>(() => ({ ...state.myVotes, ...local }), [state.myVotes, local]);
@@ -73,10 +77,12 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
     undoRef.current = undo;
   });
   useEffect(() => {
-    if (intro) return; // Pfeiltasten blättern dann in der Einführung
+    // Pfeiltasten blättern dann in der Einführung; in der Detailansicht schließt nur Escape
+    if (intro || details) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
-      if (e.key === "ArrowRight" && top) castRef.current(top, "yes");
+      if ((e.key === "i" || e.key === "I") && top && !e.metaKey && !e.ctrlKey && !e.altKey) setDetails(top);
+      else if (e.key === "ArrowRight" && top) castRef.current(top, "yes");
       else if (e.key === "ArrowLeft" && top) castRef.current(top, "no");
       else if (e.key === "ArrowUp" && top) {
         e.preventDefault(); // sonst scrollt die Seite mit
@@ -86,7 +92,7 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [top, intro]);
+  }, [top, intro, details]);
 
   const progress = done / Math.max(1, state.movies.length);
 
@@ -111,6 +117,23 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
         </motion.button>
       </div>
       <AnimatePresence>{intro && queue.length > 0 && <SwipeIntro onClose={() => setIntro(false)} />}</AnimatePresence>
+      <AnimatePresence>
+        {details && (
+          <MovieSheet
+            key={details.tmdbId}
+            movie={details}
+            onClose={closeDetails}
+            onVote={
+              voted[details.tmdbId] == null
+                ? (choice) => {
+                    setDetails(null);
+                    cast(details, choice);
+                  }
+                : undefined
+            }
+          />
+        )}
+      </AnimatePresence>
 
       {queue.length > 0 ? (
         <>
@@ -125,6 +148,7 @@ export function Swiper({ state, onChange }: { state: RoomState; onChange: () => 
                     depth={depth}
                     enterFrom={returning?.id === m.tmdbId ? returning.choice : null}
                     onVote={(choice) => cast(m, choice)}
+                    onOpen={() => setDetails(m)}
                   />
                 ))
                 .reverse()}
@@ -252,13 +276,17 @@ function SwipeCard({
   depth,
   enterFrom,
   onVote,
+  onOpen,
 }: {
   movie: Movie;
   depth: number;
   enterFrom: Choice | null;
   onVote: (choice: Choice) => void;
+  onOpen: () => void;
 }) {
   const top = depth === 0;
+  // Antippen öffnet die Details, aber nur, wenn die Karte nicht gezogen wurde
+  const dragged = useRef(false);
   const t = useT();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -299,7 +327,16 @@ function SwipeCard({
       dragElastic={{ left: 0.95, right: 0.95, top: 0.9, bottom: 0.15 }}
       dragTransition={{ bounceStiffness: 420, bounceDamping: 26 }}
       whileDrag={{ scale: 1.03, cursor: "grabbing" }}
+      onPointerDown={() => {
+        dragged.current = false;
+      }}
+      onDragStart={() => {
+        dragged.current = true;
+      }}
       onDragEnd={onDragEnd}
+      onClick={() => {
+        if (top && !dragged.current) onOpen();
+      }}
       className={`absolute inset-0 touch-none select-none overflow-hidden rounded-[1.6rem] bg-surface shadow-[0_18px_40px_rgb(0_0_0/0.45)] ${
         top ? "cursor-grab" : "pointer-events-none"
       }`}
@@ -346,6 +383,19 @@ function SwipeCard({
           {movie.year && <span>{movie.year}</span>}
           {movie.runtime != null && <span>{t.swipe.runtime(movie.runtime)}</span>}
           {movie.rating != null && <span className="text-accent">★ {movie.rating.toFixed(1)}</span>}
+          {top && (
+            <button
+              type="button"
+              className="ml-auto inline-flex items-center gap-1 rounded-full border border-text/30 bg-black/30 px-2.5 text-sm font-semibold text-text backdrop-blur-sm hover:border-accent hover:text-accent"
+              aria-label={t.swipe.moreInfoAbout(movie.title)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen();
+              }}
+            >
+              <span aria-hidden>ⓘ</span> {t.swipe.moreInfo}
+            </button>
+          )}
         </p>
         {movie.overview && (
           <p className={`mt-2 text-[0.95rem] text-text/90 ${movie.tags?.length ? "line-clamp-3" : "line-clamp-4"}`}>{movie.overview}</p>

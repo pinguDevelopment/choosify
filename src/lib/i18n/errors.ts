@@ -36,6 +36,7 @@ const EN: Record<string, string> = {
   "Die Datenbank ist noch nicht auf dem neuesten Stand. Der Host muss die SQL-Updates einspielen.":
     "The database isn’t up to date yet. The host needs to run the SQL updates.",
   "Interner Fehler": "Internal error",
+  "Filmdetails gerade nicht erreichbar": "Movie details aren’t available right now",
   "Dieser Bewertungslink ist ungültig": "This rating link is invalid",
   "Diesen Film gibt es im Abspann nicht mehr": "This movie is no longer in the credits",
   "Diesen Namen hat bei diesem Film schon jemand anderes benutzt": "Someone else already used this name for this movie",
@@ -45,6 +46,8 @@ const EN: Record<string, string> = {
   "Dieser Name ist schon vergeben": "This name is already taken",
   "Nur der Host kann starten": "Only the host can start",
   "Die Runde läuft schon": "The round is already running",
+  "Keine passenden Filme gefunden, die gerade im Abo laufen. Wähle mehr Dienste, mehr Genres oder einen größeren Zeitraum.":
+    "No matching movies found that are currently included in your subscriptions. Pick more services, more genres or a wider time span.",
   "Keine passenden Filme gefunden, die gerade im Abo laufen. Wähle mehr Dienste oder Genres.":
     "No matching movies found that are currently included in your subscriptions. Pick more services or genres.",
   "Gerade wird nicht abgestimmt": "Voting isn’t open right now",

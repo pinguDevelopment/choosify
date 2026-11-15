@@ -50,6 +50,20 @@ export const de = {
     creating: "Runde wird erstellt …",
     create: "Runde erstellen",
   },
+  years: {
+    title: "Aus welcher Zeit?",
+    hint: "Nur Filme, die in diesem Zeitraum erschienen sind.",
+    any: "Egal",
+    since: (y: number) => `ab ${y}`,
+    before: (y: number) => `vor ${y}`,
+    custom: "Eigener Zeitraum",
+    from: "von",
+    to: "bis",
+    fromPlaceholder: "z. B. 1990",
+    toPlaceholder: "offen",
+    summary: (from: number | null, to: number | null) =>
+      from != null && to != null ? (from === to ? `${from}` : `${from} bis ${to}`) : from != null ? `ab ${from}` : to != null ? `bis ${to}` : "alle Jahre",
+  },
   joinByCode: {
     title: "Eingeladen worden?",
     hint: "Scann den QR-Code beim Host oder tipp den Code von der Karte ab.",
@@ -106,6 +120,7 @@ export const de = {
     button: "Beitreten",
   },
   lobby: {
+    years: (range: string) => `Erscheinungsjahr: ${range}`,
     invite: "Freunde reinholen",
     inviteHint: (n: number) => `${n} im Saal · QR scannen lassen`,
     scanAll: "Alle mal scannen",
@@ -211,8 +226,10 @@ export const de = {
     no: "Nein",
     maybe: "Wäre ok",
     yes: "Ja",
-    hintMobile: "Wischen: ← Nein · ↑ Wäre ok · → Ja",
-    hintDesktop: "Am Laptop: ← Nein, ↑ Wäre ok, → Ja. Rücktaste nimmt zurück.",
+    hintMobile: "Wischen: ← Nein · ↑ Wäre ok · → Ja · Antippen: mehr Infos",
+    hintDesktop: "Am Laptop: ← Nein, ↑ Wäre ok, → Ja. Rücktaste nimmt zurück, I oder Klick auf die Karte zeigt mehr Infos.",
+    moreInfo: "Mehr Infos",
+    moreInfoAbout: (title: string) => `Mehr Infos zu ${title}`,
     doneTitle: "Du bist durch!",
     doneText: "Sobald die anderen fertig sind, steht der Gewinner fest. Der Zwischenstand läuft live mit.",
     progress: "Wer ist wie weit?",
@@ -227,6 +244,21 @@ export const de = {
       const m = min % 60;
       return h ? `${h} Std.${m ? ` ${m} Min.` : ""}` : `${m} Min.`;
     },
+  },
+  details: {
+    close: "Schließen",
+    loading: "Lade Details …",
+    failed: "Mehr Details gerade nicht erreichbar.",
+    originalTitle: (t: string) => `Originaltitel: ${t}`,
+    votes: (n: number) => `${n.toLocaleString("de-DE")} ${plural(n, "Stimme", "Stimmen")} auf TMDB`,
+    director: "Regie",
+    cast: "Besetzung",
+    as: (role: string) => `als ${role}`,
+    trailer: "Trailer",
+    trailerSearch: "Trailer suchen",
+    imdb: "IMDb",
+    opensNewTab: "öffnet in neuem Tab",
+    voteHint: "Direkt abstimmen:",
   },
   abspann: {
     title: "Abspann",

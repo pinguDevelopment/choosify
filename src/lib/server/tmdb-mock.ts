@@ -71,6 +71,39 @@ export function mockTmdb(path: string, params: URLSearchParams): unknown {
     const m = movies.find((x) => x.id === id);
     if (!m) throw new Error("Mock: Film nicht gefunden");
     if (!params.get("append_to_response")) return m;
+    // Detailansicht: Besetzung, Regie, Trailer, IMDb-ID
+    if (params.get("append_to_response") === "credits,videos") {
+      const en = params.get("language") === "en-US";
+      return {
+        ...m,
+        ...(en ? { title: `Test movie ${id - 999}`, overview: `Description of test movie ${id - 999}.` } : {}),
+        original_title: `Test Movie ${id - 999}`,
+        tagline: en ? "A test you won’t forget." : "Ein Test, den du nie vergisst.",
+        runtime: 85 + (id % 7) * 11,
+        imdb_id: id % 5 === 0 ? null : `tt${String(1000000 + id)}`,
+        backdrop_path: null,
+        genres: genres.filter((g) => m.genre_ids.includes(g.id)).map((g) => ({ name: g.name })),
+        production_countries: [{ name: en ? "Germany" : "Deutschland" }],
+        credits: {
+          cast: ["Mila Berger", "Jonas Kraft", "Ava Lind", "Noah Stein", "Lea Wolf"].map((name, i) => ({
+            name,
+            character: `Rolle ${i + 1}`,
+            profile_path: null,
+            order: i,
+          })),
+          crew: [{ name: "Regina Test", job: "Director" }, { name: "Paul Kamera", job: "Director of Photography" }],
+        },
+        videos: {
+          results:
+            id % 6 === 0
+              ? []
+              : [
+                  { key: "teaserKEY01", site: "YouTube", type: "Teaser", official: true, iso_639_1: "en" },
+                  { key: "trailerKEY1", site: "YouTube", type: "Trailer", official: true, iso_639_1: en ? "en" : "de" },
+                ],
+        },
+      };
+    }
     // Der Detail-Abruf kommt auf Englisch (für die englische Oberfläche)
     const english = params.get("language") === "en-US" ? { title: `Test movie ${id - 999}`, overview: `Description of test movie ${id - 999}.` } : {};
     return {
@@ -84,7 +117,11 @@ export function mockTmdb(path: string, params: URLSearchParams): unknown {
   if (path === "/discover/movie") {
     const want = (params.get("with_genres") ?? "").split("|").filter(Boolean).map(Number);
     const page = Number(params.get("page") ?? 1);
-    const hits = movies.filter((m) => !want.length || m.genre_ids.some((g) => want.includes(g)));
+    const gte = params.get("primary_release_date.gte") ?? "";
+    const lte = params.get("primary_release_date.lte") ?? "9999";
+    const hits = movies.filter(
+      (m) => (!want.length || m.genre_ids.some((g) => want.includes(g))) && m.release_date >= gte && m.release_date <= lte,
+    );
     return { results: hits.slice((page - 1) * 20, page * 20), total_pages: Math.ceil(hits.length / 20) };
   }
   throw new Error(`Mock: unbekannter Pfad ${path}`);

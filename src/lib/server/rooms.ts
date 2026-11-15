@@ -8,7 +8,7 @@ import type { Locale } from "../i18n/config";
 import { hashSecret, newRoomCode, newSecret } from "./tokens";
 import { currentAccount, selectCrew } from "./account";
 import { setCrewCookie, setParticipantCookie, currentCrew, type Participant, type Room } from "./session";
-import { BUCKETS, mixBuckets, pickCandidates, randomPage, releaseYear, personalOrder, streamableOn, type Choice, type TmdbMovie } from "../candidates";
+import { BUCKETS, NO_YEARS, mixBuckets, pickCandidates, randomPage, releaseYear, personalOrder, streamableOn, type Choice, type TmdbMovie, type YearRange } from "../candidates";
 import { runoffResult, tiedLeaders } from "../ranking";
 import { averageStars, EMPTY_TASTE, tasteBoost, tasteRerank, tasteSummary, type Taste } from "../taste";
 import { crewRatings, loadCrewTaste, rateLink } from "./ratings";
@@ -24,6 +24,7 @@ export async function createRoom(input: {
   region: string;
   providerIds: number[];
   anySource: boolean;
+  years?: YearRange;
   crewName?: string;
   locale?: Locale;
 }): Promise<{ code: string; id: string }> {
@@ -52,7 +53,14 @@ export async function createRoom(input: {
     if (error) throw error;
   }
 
-  return insertRoom({ crewId: crew!.id, region: input.region, providerIds: input.providerIds, anySource: input.anySource, hostName: input.hostName });
+  return insertRoom({
+    crewId: crew!.id,
+    region: input.region,
+    providerIds: input.providerIds,
+    anySource: input.anySource,
+    years: input.years,
+    hostName: input.hostName,
+  });
 }
 
 /**
@@ -64,14 +72,24 @@ export async function insertRoom(input: {
   region: string;
   providerIds: number[];
   anySource: boolean;
+  years?: YearRange;
   hostName?: string;
 }): Promise<{ code: string; id: string }> {
+  const years = input.years ?? NO_YEARS;
   // Code-Kollisionen sind extrem unwahrscheinlich, trotzdem abfangen.
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = newRoomCode();
     const { data: room, error } = await db()
       .from("rooms")
-      .insert({ code, crew_id: input.crewId, region: input.region, provider_ids: input.providerIds, any_source: input.anySource })
+      .insert({
+        code,
+        crew_id: input.crewId,
+        region: input.region,
+        provider_ids: input.providerIds,
+        any_source: input.anySource,
+        year_from: years.from,
+        year_to: years.to,
+      })
       .select("id")
       .single();
     if (error?.code === PG_UNIQUE) continue;
@@ -147,7 +165,8 @@ async function findCandidates(room: Room, genreIds: number[], selections: number
     : room.provider_ids.length
     ? room.provider_ids
     : (await getProviders(room.region)).filter((p) => p.featured).map((p) => p.id);
-  const base = { region: room.region, providerIds, genreIds };
+  const years = { from: room.year_from, to: room.year_to };
+  const base = { region: room.region, providerIds, genreIds, years };
 
   const lists = await Promise.all(
     BUCKETS.map(async (bucket) => {
@@ -210,6 +229,9 @@ export async function startVoting(room: Room, me: Participant) {
 
   const picked = await findCandidates(room, genreIds, selections, watched, taste);
   if (picked.length === 0) {
+    if (room.year_from != null || room.year_to != null) {
+      throw new AppError(422, "Keine passenden Filme gefunden, die gerade im Abo laufen. Wähle mehr Dienste, mehr Genres oder einen größeren Zeitraum.");
+    }
     throw new AppError(422, "Keine passenden Filme gefunden, die gerade im Abo laufen. Wähle mehr Dienste oder Genres.");
   }
 
@@ -360,6 +382,7 @@ export async function roomState(room: Room, me: Participant | null, locale: Loca
     status: room.status,
     region: room.region,
     providerIds: room.provider_ids,
+    years: { from: room.year_from, to: room.year_to },
     me: me ? { name: me.name, isHost: me.is_host, genresDone: me.genres_done, genreIds: me.genre_ids } : null,
   };
   // Wer nicht beigetreten ist, sieht nur das Nötigste zum Beitreten.
