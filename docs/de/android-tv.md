@@ -1,3 +1,5 @@
+[English](../en/android-tv.md) · **Deutsch**
+
 # Cinemood auf dem Android-Fernseher
 
 Die App **Cinemood TV** öffnet die Fernseher-Seite (`/tv`) im Vollbild. Am Fernseher musst du nichts
