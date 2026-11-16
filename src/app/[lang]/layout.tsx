@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Big_Shoulders, Big_Shoulders_Inline, Figtree } from "next/font/google";
 import { I18nProvider } from "@/components/I18nProvider";
 import { LOCALES } from "@/lib/i18n/config";
@@ -35,6 +36,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: APP_NAME, description: t.meta.description };
 }
 
+// Vercel Analytics nur, wenn die App auf Vercel läuft (dort ist VERCEL=1 gesetzt).
+// Beim Self-Hosting (Docker) gibt es /_vercel/insights nicht, dann wird nichts eingebunden.
+const onVercel = process.env.VERCEL === "1";
+
 export const viewport: Viewport = { themeColor: "#2A0A14", width: "device-width", initialScale: 1 };
 
 // suppressHydrationWarning: Browser-Erweiterungen (z.B. data-qb-installed) setzen Attribute auf <html>,
@@ -45,6 +50,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
     <html lang={lang} suppressHydrationWarning className={`${display.variable} ${marquee.variable} ${body.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <I18nProvider locale={lang}>{children}</I18nProvider>
+        {onVercel && <Analytics />}
       </body>
     </html>
   );
