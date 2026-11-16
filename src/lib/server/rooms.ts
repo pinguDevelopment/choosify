@@ -11,8 +11,9 @@ import { currentAccount, selectCrew } from "./account";
 import { setCrewCookie, setParticipantCookie, currentCrew, type Participant, type Room } from "./session";
 import { BUCKETS, NO_YEARS, mixBuckets, pickCandidates, randomPage, releaseYear, personalOrder, streamableOn, type Choice, type TmdbMovie, type YearRange } from "../candidates";
 import { rankMovies, runoffResult, tiedLeaders } from "../ranking";
-import { averageStars, EMPTY_TASTE, tasteBoost, tasteRerank, tasteSummary, type Taste } from "../taste";
+import { averageStars, EMPTY_TASTE, groupBooster, tasteBoost, tasteRerank, tasteSummary, type Taste } from "../taste";
 import { crewRatings, loadCrewTaste, rateLink } from "./ratings";
+import { groupTastes } from "./training";
 
 export { AppError };
 
@@ -105,9 +106,17 @@ export async function insertRoom(input: {
     if (!input.hostName) return { code, id };
 
     const secret = newSecret();
+    const account = await currentAccount();
     await db()
       .insertInto("participants")
-      .values({ id: randomUUID(), room_id: id, name: input.hostName, token_hash: hashSecret(secret, env().APP_SECRET), is_host: true })
+      .values({
+        id: randomUUID(),
+        room_id: id,
+        name: input.hostName,
+        token_hash: hashSecret(secret, env().APP_SECRET),
+        is_host: true,
+        account_id: account?.id ?? null,
+      })
       .execute();
     await setParticipantCookie(code, secret);
     return { code, id };
@@ -125,7 +134,9 @@ export async function joinRoom(room: Room, name: string): Promise<void> {
   // Der Unique-Index participants_one_host verhindert zwei Hosts, falls zwei gleichzeitig beitreten:
   // Dann scheitert das Einfügen als Host und die Person kommt als Gast rein.
   const secret = newSecret();
-  const row = { room_id: room.id, name, token_hash: hashSecret(secret, env().APP_SECRET) };
+  // Angemeldet: Konto merken, damit der trainierte Geschmack („Train my Algorithm“) mitzählt
+  const account = await currentAccount();
+  const row = { room_id: room.id, name, token_hash: hashSecret(secret, env().APP_SECRET), account_id: account?.id ?? null };
   const id = randomUUID();
   const insert = (isHost: boolean) => db().insertInto("participants").values({ ...row, id, is_host: isHost }).execute();
   const asHost = !people.some((p) => p.is_host);
@@ -175,10 +186,13 @@ const ROOM_SIZE = 30;
  * abwechselnd gemischt. Danach wird jeder Film einzeln geprüft: Er muss gerade bei einem der
  * gewählten Dienste im Abo, kostenlos oder mit Werbung laufen. Reine Kino- oder Leihfilme fliegen raus.
  *
- * Hat die Crew schon Filme bewertet, rücken Filme mit Genres und Tags, die ihr gefallen haben,
- * etwas nach vorne (und umgekehrt). Die Mischung bleibt dabei erhalten.
+ * Hat die Crew schon Filme bewertet oder haben Leute aus der Runde ihren Geschmack trainiert
+ * („Train my Algorithm“), rücken passende Filme etwas nach vorne (und umgekehrt).
+ * Die Mischung bleibt dabei erhalten.
  */
-async function findCandidates(room: Room, genreIds: number[], selections: number[][], watched: number[], taste: Taste) {
+type Booster = ReturnType<typeof groupBooster>;
+
+async function findCandidates(room: Room, genreIds: number[], selections: number[][], watched: number[], boost: Booster) {
   // "Sonstige / eigene Quelle": kein Dienst-Filter und keine Prüfung, nur die Kino-Sperre bleibt.
   // Ohne Auswahl sonst: alle bekannten Dienste, damit trotzdem nur Streambares kommt.
   const providerIds = room.any_source
@@ -195,9 +209,7 @@ async function findCandidates(room: Room, genreIds: number[], selections: number
       const page = randomPage(bucket, first.totalPages);
       const more = page === 1 ? [] : (await discover({ ...base, bucket, page })).results;
       // Zufällige Seite zuerst, damit nicht jede Runde dieselben Filme bringt
-      return pickCandidates([...more, ...first.results], selections, watched, ROOM_SIZE, (m) =>
-        tasteBoost(taste, m.genre_ids),
-      );
+      return pickCandidates([...more, ...first.results], selections, watched, ROOM_SIZE, boost ? (m) => boost(m.genre_ids, [], m.id) : undefined);
     }),
   );
   // Pro Film ein Abruf: Verfügbarkeit, Schlagwörter (für die Tags) und Laufzeit
@@ -210,13 +222,13 @@ async function findCandidates(room: Room, genreIds: number[], selections: number
   };
   // Geschmack mit Genres und Tags (die Tags gibt es erst nach dem Detail-Abruf)
   const byTaste = <T extends TmdbMovie & { details: MovieDetails | null }>(list: T[]) =>
-    taste.rated
+    boost
       ? tasteRerank(list, (m) =>
-          tasteBoost(taste, m.genre_ids, movieTags({ genreIds: m.genre_ids, keywords: m.details?.keywords, year: releaseYear(m.release_date), rating: m.vote_average })),
+          boost(m.genre_ids, movieTags({ genreIds: m.genre_ids, keywords: m.details?.keywords, year: releaseYear(m.release_date), rating: m.vote_average }), m.id),
         )
       : list;
   if (room.any_source) {
-    const mixed = mixBuckets(lists, taste.rated ? Math.round(ROOM_SIZE * 1.3) : ROOM_SIZE);
+    const mixed = mixBuckets(lists, boost ? Math.round(ROOM_SIZE * 1.3) : ROOM_SIZE);
     return byTaste(await Promise.all(mixed.map(withDetails))).slice(0, ROOM_SIZE);
   }
   const mixed = mixBuckets(lists, Math.round(ROOM_SIZE * 1.6));
@@ -231,7 +243,7 @@ export async function startVoting(room: Room, me: Participant) {
   if (!me.is_host) throw new AppError(403, "Nur der Host kann starten");
   if (room.status !== "lobby") throw new AppError(409, "Die Runde läuft schon");
 
-  const people = await db().selectFrom("participants").select("genre_ids").where("room_id", "=", room.id).execute();
+  const people = await db().selectFrom("participants").select(["genre_ids", "account_id"]).where("room_id", "=", room.id).execute();
   const selections = people.map((p) => p.genre_ids);
   const genreIds = [...new Set(selections.flat())];
 
@@ -242,8 +254,11 @@ export async function startVoting(room: Room, me: Participant) {
     watched = data.map((r) => r.tmdb_id);
     taste = await loadCrewTaste(room.crew_id, data);
   }
+  // Wer angemeldet ist und trainiert hat, bringt seinen Geschmack mit
+  const personal = await groupTastes(people.map((p) => p.account_id));
+  const boost = groupBooster(taste, [...personal.values()]);
 
-  const picked = await findCandidates(room, genreIds, selections, watched, taste);
+  const picked = await findCandidates(room, genreIds, selections, watched, boost);
   if (picked.length === 0) {
     if (room.year_from != null || room.year_to != null) {
       throw new AppError(422, "Keine passenden Filme gefunden, die gerade im Abo laufen. Wähle mehr Dienste, mehr Genres oder einen größeren Zeitraum.");
@@ -417,7 +432,12 @@ export async function roomState(room: Room, me: Participant | null, locale: Loca
     if (v.participant_id === me.id) myVotes[v.tmdb_id] = DB_TO_CHOICE[v.choice];
   }
 
-  const [runoff, rateToken] = await Promise.all([runoffState(room, me), winnerRateToken(room)]);
+  const [runoff, rateToken, mine] = await Promise.all([
+    runoffState(room, me),
+    winnerRateToken(room),
+    room.status === "voting" ? groupTastes([me.account_id]) : Promise.resolve(new Map()),
+  ]);
+  const myTaste = me.account_id ? mine.get(me.account_id) : undefined;
   const ranking = rankingOf(movies, votes, people.length, locale);
 
   return {
@@ -429,8 +449,9 @@ export async function roomState(room: Room, me: Participant | null, locale: Loca
       voted: votedCount.get(p.id) ?? 0,
     })),
     // Jede Person bekommt eine eigene, gemischte Reihenfolge (fester Seed pro Person),
-    // Filme derselben Reihe werden dabei auseinandergezogen.
-    movies: personalOrder(
+    // Filme derselben Reihe werden dabei auseinandergezogen. Wer trainiert hat, sieht
+    // Filme nach seinem Geschmack etwas früher.
+    movies: byOwnTaste(personalOrder(
       movies.map((m) => ({
         tmdbId: m.tmdb_id,
         ...localized(m, locale),
@@ -447,13 +468,19 @@ export async function roomState(room: Room, me: Participant | null, locale: Loca
         runtime: m.runtime_min,
       })),
       me.id,
-    ),
+    ), myTaste, new Map(movies.map((m) => [m.tmdb_id, (m.tags as string[] | null) ?? []]))),
     myVotes,
     ranking,
     runoff,
     winner: room.winner_tmdb_id,
     rateToken,
   };
+}
+
+/** Eigene Reihenfolge sanft nach dem trainierten Geschmack (stabil, damit beim Neuladen nichts springt). */
+function byOwnTaste<T extends { tmdbId: number; genreIds: number[] }>(list: T[], taste: Taste | undefined, tags: Map<number, string[]>): T[] {
+  if (!taste?.rated) return list;
+  return tasteRerank(list, (m) => tasteBoost(taste, m.genreIds, tags.get(m.tmdbId) ?? [], m.tmdbId), 6);
 }
 
 /** Titel und Beschreibung in der gewünschten Sprache, sonst die deutschen von TMDB. */

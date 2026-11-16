@@ -139,6 +139,25 @@ const SQLITE: string[][] = [
     )`,
     `create index if not exists tv_pairings_expires_idx on tv_pairings(expires_at)`,
   ],
+  // 2) „Train my Algorithm“: Stimmen pro Konto, Konto am Teilnehmer, Schalter im Konto
+  [
+    `alter table accounts add column use_training integer not null default 1`,
+    `alter table participants add column account_id text references accounts(id) on delete set null`,
+    `create table if not exists training_votes (
+      account_id text not null references accounts(id) on delete cascade,
+      tmdb_id integer not null check (tmdb_id > 0),
+      choice integer not null check (choice in (-1, 0, 1)),
+      title text not null,
+      title_en text,
+      poster_path text,
+      release_year integer,
+      genre_ids text not null default '[]',
+      tags text not null default '[]',
+      voted_at text not null default ${SQLITE_NOW},
+      primary key (account_id, tmdb_id)
+    )`,
+    `create index if not exists training_votes_recent_idx on training_votes(account_id, voted_at)`,
+  ],
 ];
 
 // MariaDB/MySQL: Namen in Unique-Indizes ohne Unterscheidung von Groß/Klein über die Sortierung (_ci).
@@ -279,6 +298,27 @@ const MYSQL: string[][] = [
       expires_at datetime(3) not null,
       index tv_pairings_expires_idx (expires_at),
       foreign key (room_id) references rooms(id) on delete cascade
+    ) ${T}`,
+  ],
+  // 2) „Train my Algorithm“: Stimmen pro Konto, Konto am Teilnehmer, Schalter im Konto
+  [
+    `alter table accounts add column use_training boolean not null default true`,
+    `alter table participants add column account_id char(36) null,
+      add foreign key (account_id) references accounts(id) on delete set null`,
+    `create table if not exists training_votes (
+      account_id char(36) not null,
+      tmdb_id int not null,
+      choice smallint not null,
+      title varchar(300) not null,
+      title_en varchar(300),
+      poster_path varchar(200),
+      release_year smallint,
+      genre_ids varchar(500) not null default '[]',
+      tags varchar(500) not null default '[]',
+      voted_at datetime(3) not null default ${MYSQL_NOW},
+      primary key (account_id, tmdb_id),
+      index training_votes_recent_idx (account_id, voted_at),
+      foreign key (account_id) references accounts(id) on delete cascade
     ) ${T}`,
   ],
 ];

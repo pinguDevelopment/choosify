@@ -55,6 +55,8 @@ export interface DB {
     genre_ids: List<number>;
     genres_done: Flag;
     joined_at: Timestamp;
+    /** angemeldetes Konto der Person (für „Train my Algorithm“), sonst null */
+    account_id: ColumnType<string | null, string | null | undefined, string | null>;
   };
   room_movies: {
     room_id: string;
@@ -95,6 +97,8 @@ export interface DB {
     email: string;
     favorite_provider_ids: List<number>;
     favorite_other: Flag;
+    /** Trainierten Geschmack in Gruppenrunden berücksichtigen */
+    use_training: Flag;
     created_at: Timestamp;
   };
   account_sessions: {
@@ -110,6 +114,20 @@ export interface DB {
     name: string;
     stars: number;
     rated_at: Timestamp;
+  };
+  /** „Train my Algorithm“: Stimmen einer Person, allein geswipt */
+  training_votes: {
+    account_id: string;
+    tmdb_id: number;
+    /** 1 = mag ich, 0 = geht so, -1 = nicht meins */
+    choice: number;
+    title: string;
+    title_en: string | null;
+    poster_path: string | null;
+    release_year: number | null;
+    genre_ids: List<number>;
+    tags: List<string>;
+    voted_at: Timestamp;
   };
   tv_pairings: {
     id: string;

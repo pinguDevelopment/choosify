@@ -1,4 +1,4 @@
--- Cinemood: bringt eine bestehende Datenbank auf den aktuellen Stand (Stand 15.11., mit Konten, Bewertungen, Fernseher-Kopplung, Mehrsprachigkeit und Jahresfilter).
+-- Cinemood: bringt eine bestehende Datenbank auf den aktuellen Stand (Stand 16.11., mit Konten, Bewertungen, Fernseher-Kopplung, Mehrsprachigkeit, Jahresfilter und „Train my Algorithm“).
 -- Darf beliebig oft ausgeführt werden, egal welche Updates schon gelaufen sind.
 -- Im Supabase-Dashboard unter "SQL Editor" komplett einfügen und auf "Run" klicken.
 -- Ganz unten steht eine Prüfung: Sie listet alles, was noch fehlt (leeres Ergebnis = alles da).
@@ -240,6 +240,32 @@ alter table rooms add constraint rooms_years_check check (
   and (year_from is null or year_to is null or year_from <= year_to)
 );
 
+-- 5f) „Train my Algorithm“: Angemeldete swipen allein durch Filme, damit Cinemood ihren Geschmack lernt.
+-- Die Stimmen gehören dem Konto (1 = mag ich, 0 = geht so, -1 = nicht meins). Genres und Tags
+-- werden mitgespeichert, damit der Geschmack ohne weitere TMDB-Abrufe berechnet werden kann.
+create table if not exists training_votes (
+  account_id    uuid not null references accounts(id) on delete cascade,
+  tmdb_id       integer not null check (tmdb_id > 0),
+  choice        smallint not null check (choice in (-1, 0, 1)),
+  title         text not null check (char_length(title) between 1 and 300),
+  title_en      text check (char_length(title_en) <= 300),
+  poster_path   text check (char_length(poster_path) <= 200),
+  release_year  smallint,
+  genre_ids     integer[] not null default '{}' check (cardinality(genre_ids) <= 20),
+  tags          text[] not null default '{}' check (cardinality(tags) <= 6),
+  voted_at      timestamptz not null default now(),
+  primary key (account_id, tmdb_id)
+);
+create index if not exists training_votes_recent_idx on training_votes (account_id, voted_at desc);
+alter table training_votes enable row level security;
+
+-- Schalter im Konto: trainierten Geschmack in Gruppenrunden nutzen (Standard: an).
+alter table accounts add column if not exists use_training boolean not null default true;
+
+-- Wer angemeldet einer Runde beitritt, wird mit seinem Konto verknüpft. So fließt sein
+-- trainierter Geschmack in die Filmauswahl der Runde ein. Andere sehen das Konto nie.
+alter table participants add column if not exists account_id uuid references accounts(id) on delete set null;
+
 -- 6) Browser-Rollen haben weiterhin keinen Zugriff (alles läuft über den Server)
 do $$
 begin
@@ -262,7 +288,8 @@ select fehlt from (
                ('abspann','genre_ids'), ('abspann','tags'), ('ratings','stars'),
                ('tv_pairings','code'), ('tv_pairings','room_id'),
                ('room_movies','title_en'), ('room_movies','overview_en'), ('abspann','title_en'),
-               ('rooms','year_from'), ('rooms','year_to')) need(t, c)
+               ('rooms','year_from'), ('rooms','year_to'),
+               ('training_votes','choice'), ('accounts','use_training'), ('participants','account_id')) need(t, c)
   where not exists (select 1 from information_schema.columns
                     where table_schema = 'public' and table_name = need.t and column_name = need.c)
   union all

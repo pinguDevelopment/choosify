@@ -83,3 +83,8 @@ export const tvPairSchema = z.object({
 });
 // Geheimnis des Fernsehers (newSecret: 32 Byte base64url)
 export const tvStatusSchema = z.object({ secret: z.string().regex(/^[A-Za-z0-9_-]{43}$/) });
+
+// ---- „Train my Algorithm“ ----
+export const trainingVoteSchema = voteSchema;
+export const trainingBatchSchema = z.object({ exclude: z.array(tmdbIdSchema).max(300).default([]) });
+export const trainingPatchSchema = z.object({ useInGroups: z.boolean() });
