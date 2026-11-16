@@ -1,6 +1,6 @@
 # Cinemood selbst hosten: `docker compose up -d`, danach http://<IP-des-Rechners>:3000 öffnen.
 # Vorher eine Datei .env anlegen (siehe .env.example): TMDB_READ_TOKEN und APP_SECRET reichen.
-# Anleitung: docs/self-hosting.md
+# Anleitung / Guide: docs/de/self-hosting.md · docs/en/self-hosting.md
 
 services:
   cinemood:

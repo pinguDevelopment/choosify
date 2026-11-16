@@ -1,3 +1,5 @@
+[English](../en/self-hosting.md) · **Deutsch**
+
 # Cinemood selbst hosten
 
 Cinemood läuft auch ohne Supabase und Vercel auf einem eigenen Rechner (Raspberry Pi, NAS, Server).

@@ -82,7 +82,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="1.0.${GITHUB_RUN_NUMBER}"
-          notes="Handy-App für Cinemood, Version ${version}. Installation: docs/android-app.md. Installierte Apps finden diese Version von selbst (Update-Prüfung beim Start)."
+          notes="Handy-App für Cinemood, Version ${version}. Installation: docs/de/android-app.md (English: docs/en/android-app.md). Installierte Apps finden diese Version von selbst (Update-Prüfung beim Start)."
           printf '{"versionCode": %s, "versionName": "%s", "apk": "https://github.com/%s/releases/download/handy-app/cinemood-handy.apk"}\n' \
             "$GITHUB_RUN_NUMBER" "$version" "$GITHUB_REPOSITORY" > version.json
           if gh release view handy-app >/dev/null 2>&1; then

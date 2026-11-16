@@ -1,6 +1,6 @@
 # Cinemood zum Selbst-Hosten. Standard: SQLite in einer Datei unter /data, ohne Mail-Login.
 # Bauen:   docker build -t cinemood .
-# Starten: siehe docker-compose.yml oder docs/self-hosting.md
+# Starten: siehe docker-compose.yml oder docs/de/self-hosting.md (English: docs/en/self-hosting.md)
 
 # Volles Image zum Installieren: better-sqlite3 wird dabei übersetzt (braucht python3, make, g++)
 FROM node:22-bookworm AS deps

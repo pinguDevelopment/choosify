@@ -1,3 +1,5 @@
+[English](../en/login-setup.md) · **Deutsch**
+
 # Login einrichten: Google und Magic-Link (Supabase)
 
 Das Konto ist freiwillig und nur für Hosts gedacht. Gäste treten weiterhin nur mit ihrem Namen bei.

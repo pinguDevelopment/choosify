@@ -1,3 +1,5 @@
+[English](../en/android-app.md) · **Deutsch**
+
 # Cinemood als App fürs Handy (Android, z. B. Samsung Galaxy)
 
 Die App **Cinemood** fürs Handy und Tablet kann alles, was die Webseite kann: Runde erstellen, Freunde per

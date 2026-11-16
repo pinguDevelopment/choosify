@@ -1,7 +1,7 @@
 # Cinemood Handy-App (Android)
 
 Android-App für Handy und Tablet: Runden erstellen, per QR-Code beitreten und abstimmen, mit Anmeldung über Google.
-Die App zeigt die Web-App von Cinemood in einer WebView. Installation und Einrichtung: [docs/android-app.md](../docs/android-app.md).
+Die App zeigt die Web-App von Cinemood in einer WebView. Installation und Einrichtung: [Deutsch](../docs/de/android-app.md) · [English](../docs/en/android-app.md).
 
 - Code: `app/src/main/java/app/cinemood/handy/`
   - `MainActivity`: WebView, Google-Anmeldung im Custom Tab, Rücksprung über `cinemood://anmelden`, QR-Links (`/r/…`)
