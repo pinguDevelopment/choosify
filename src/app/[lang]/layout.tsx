@@ -4,6 +4,7 @@ import { Big_Shoulders, Big_Shoulders_Inline, Figtree } from "next/font/google";
 import { I18nProvider } from "@/components/I18nProvider";
 import { LOCALES } from "@/lib/i18n/config";
 import { MESSAGES } from "@/lib/i18n/messages";
+import { AUTHOR, AUTHOR_URL, REPO_URL } from "@/lib/i18n/brand";
 import { APP_NAME, pageLocale } from "@/lib/i18n/page";
 import "./globals.css";
 
@@ -33,7 +34,12 @@ export function generateStaticParams() {
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = MESSAGES[await pageLocale()];
-  return { title: APP_NAME, description: t.meta.description };
+  return {
+    title: APP_NAME,
+    description: t.meta.description,
+    authors: [{ name: AUTHOR, url: AUTHOR_URL }],
+    creator: AUTHOR,
+  };
 }
 
 // Vercel Analytics nur, wenn die App auf Vercel läuft (dort ist VERCEL=1 gesetzt).
@@ -50,6 +56,17 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
     <html lang={lang} suppressHydrationWarning className={`${display.variable} ${marquee.variable} ${body.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <I18nProvider locale={lang}>{children}</I18nProvider>
+        {/* Urheber-Hinweis auf jeder Seite. Auf dem Fernseher (/tv) liegt er unterhalb des sichtbaren Bereichs. */}
+        <footer className="px-4 pt-2 pb-5 text-center text-xs text-muted">
+          © 2026 {APP_NAME} · {MESSAGES[lang].common.madeBy}{" "}
+          <a href={AUTHOR_URL} className="font-semibold underline-offset-2 hover:underline" target="_blank" rel="author noopener">
+            {AUTHOR}
+          </a>
+          {" · "}
+          <a href={REPO_URL} className="underline-offset-2 hover:underline" target="_blank" rel="noopener">
+            GitHub
+          </a>
+        </footer>
         {onVercel && <Analytics />}
       </body>
     </html>

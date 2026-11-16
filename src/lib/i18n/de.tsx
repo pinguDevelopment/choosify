@@ -15,6 +15,7 @@ export const de = {
   },
   common: {
     loading: "Lade …",
+    madeBy: "Entwickelt von",
     loadingRound: "Lade Runde …",
     yourName: "Dein Name",
     namePlaceholder: "z.B. Lena",

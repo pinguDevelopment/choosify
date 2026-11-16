@@ -15,7 +15,7 @@
     <string name="settings_saved">Saved</string>
     <string name="settings_invalid">That\'s not a valid address</string>
     <string name="settings_keys">Open this screen any time: press and hold the Cinemood icon on your home screen → Settings.</string>
-    <string name="settings_version">Version %1$s</string>
+    <string name="settings_version">Version %1$s · Developed by pinguDevelopment</string>
     <string name="settings_reload">Reload page</string>
     <string name="settings_check_update">Check for updates</string>
     <string name="error_timeout">The page is taking too long to load.</string>

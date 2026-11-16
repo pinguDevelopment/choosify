@@ -16,6 +16,7 @@ export const en: Messages = {
   },
   common: {
     loading: "Loading …",
+    madeBy: "Developed by",
     loadingRound: "Loading round …",
     yourName: "Your name",
     namePlaceholder: "e.g. Alex",
