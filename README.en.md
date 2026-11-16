@@ -2,6 +2,8 @@
 
 # Cinemood
 
+**Developed by [pinguDevelopment](https://github.com/pinguDevelopment)** · © 2026 pinguDevelopment
+
 Find a movie together, fast: the host creates a round and picks the streaming services,
 everyone joins by QR code, chooses genres and swipes movies. The movie everyone (or most people)
 wants to watch wins. Movies the crew has already seen go into the **credits**
@@ -76,3 +78,10 @@ npm run e2e       # end-to-end: host + 2 guests play a round (needs a running de
 ```
 
 For local tests without TMDB access, set `TMDB_MOCK=1` in `.env.local` (never takes effect in production).
+
+## Author
+
+Cinemood was designed and programmed by [pinguDevelopment](https://github.com/pinguDevelopment).
+The note “Developed by pinguDevelopment” is shown at the bottom of every page and in the settings of the phone and TV apps.
+
+© 2026 pinguDevelopment

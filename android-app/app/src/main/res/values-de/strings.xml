@@ -14,7 +14,7 @@
     <string name="settings_saved">Gespeichert</string>
     <string name="settings_invalid">Das ist keine gültige Adresse</string>
     <string name="settings_keys">Diese Seite öffnest du jederzeit: Cinemood-Symbol auf dem Startbildschirm lange drücken → Einstellungen.</string>
-    <string name="settings_version">Version %1$s</string>
+    <string name="settings_version">Version %1$s · Entwickelt von pinguDevelopment</string>
     <string name="settings_reload">Seite neu laden</string>
     <string name="settings_check_update">Nach Updates suchen</string>
     <string name="error_timeout">Die Seite lädt zu lange.</string>
