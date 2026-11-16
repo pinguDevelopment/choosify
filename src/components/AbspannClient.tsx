@@ -223,7 +223,7 @@ function TasteCard({ taste }: { taste: Taste }) {
   );
 }
 
-function TasteRow({ label, items, good }: { label: string; items: string[]; good?: boolean }) {
+export function TasteRow({ label, items, good }: { label: string; items: string[]; good?: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="w-24 shrink-0 text-sm text-muted">{label}</span>
@@ -236,7 +236,7 @@ function TasteRow({ label, items, good }: { label: string; items: string[]; good
   );
 }
 
-function Thumb({ src }: { src: string | null }) {
+export function Thumb({ src }: { src: string | null }) {
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt="" className="h-14 w-10 rounded-md object-cover" />

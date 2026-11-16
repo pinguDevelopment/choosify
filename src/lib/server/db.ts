@@ -208,7 +208,7 @@ function encodeSqlite(v: unknown): unknown {
 // ---- Ergebnisse vereinheitlichen -----------------------------------------------
 
 const ARRAY_COLUMNS = new Set(["provider_ids", "runoff_ids", "genre_ids", "tags", "favorite_provider_ids"]);
-const BOOL_COLUMNS = new Set(["is_host", "genres_done", "winner_to_abspann", "any_source", "favorite_other"]);
+const BOOL_COLUMNS = new Set(["is_host", "genres_done", "winner_to_abspann", "any_source", "favorite_other", "use_training"]);
 const NUMBER_COLUMNS = new Set(["vote_average", "n", "tokens"]);
 const MYSQL_TIME = /^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d)(\.\d+)?$/;
 

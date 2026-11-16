@@ -29,6 +29,11 @@ export default async function Home() {
           {t.home.accountLink}
         </Link>
       )}
+      {accountsEnabled() && (
+        <Link href="/trainieren" className="-mt-7 text-muted underline decoration-line underline-offset-4 hover:text-text">
+          {t.home.trainLink}
+        </Link>
+      )}
       <Link href="/fernseher" className="-mt-7 text-muted underline decoration-line underline-offset-4 hover:text-text">
         {t.home.tvLink}
       </Link>

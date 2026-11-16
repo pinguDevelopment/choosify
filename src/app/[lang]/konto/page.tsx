@@ -21,6 +21,9 @@ export default async function KontoPage() {
       <header className="flex items-center justify-between gap-3">
         <Brand />
         <nav className="flex items-center gap-4">
+          <Link href="/trainieren" className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text">
+            {t.common.train}
+          </Link>
           <Link href="/abspann" className="text-sm text-muted underline decoration-line underline-offset-4 hover:text-text">
             {t.common.abspann}
           </Link>

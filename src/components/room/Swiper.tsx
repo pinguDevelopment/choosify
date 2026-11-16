@@ -12,9 +12,11 @@ import { Switch } from "@/components/Switch";
 
 const THRESHOLD = 110; // px, ab hier zählt ein Wisch
 const FLICK = 650; // px/s, ein schneller Schubs reicht auch ohne weiten Weg
-const SPRING = { type: "spring", stiffness: 380, damping: 32, mass: 0.9 } as const;
-// Wohin eine Karte je Stimme rausfliegt: Ja nach rechts, Nein nach links, Wäre ok nach oben
-const FLY: Record<Choice, { x: number; y: number }> = { yes: { x: 1, y: 0 }, no: { x: -1, y: 0 }, maybe: { x: 0, y: -1 } };
+export const SPRING = { type: "spring", stiffness: 380, damping: 32, mass: 0.9 } as const;
+// Wohin eine Karte je Stimme rausfliegt: Ja nach rechts, Nein nach links, Wäre ok nach oben,
+// Überspringen (nur beim Trainieren) nach unten
+export type Exit = Choice | "skip";
+const FLY: Record<Exit, { x: number; y: number }> = { yes: { x: 1, y: 0 }, no: { x: -1, y: 0 }, maybe: { x: 0, y: -1 }, skip: { x: 0, y: 1 } };
 
 export function Swiper({ state, onChange }: { state: RoomState; onChange: () => void }) {
   // null = lokal zurückgenommen, bis der Server es bestätigt
@@ -245,7 +247,7 @@ function FinishButton({ state, onChange }: { state: RoomState; onChange: () => v
 
 const cardVariants = {
   // Neue Karten tauchen hinten im Stapel auf. Bei Rückgängig fliegt die Karte von der Seite zurück, zu der sie raus ist.
-  initial: (enterFrom: Choice | null) =>
+  initial: (enterFrom: Exit | null) =>
     enterFrom
       ? { x: FLY[enterFrom].x * 520, y: FLY[enterFrom].y * 620, rotate: FLY[enterFrom].x * 22, opacity: 1 }
       : { scale: 0.86, y: 46, opacity: 0 },
@@ -259,7 +261,7 @@ const cardVariants = {
     transition: SPRING,
   }),
   // Rausfliegen in Wischrichtung (custom kommt von AnimatePresence, damit auch Knopf und Tastatur passen)
-  exit: (choice: Choice) => ({
+  exit: (choice: Exit) => ({
     x: FLY[choice].x * 640,
     y: FLY[choice].y ? FLY[choice].y * 760 : 40,
     rotate: FLY[choice].x * 26,
@@ -269,7 +271,7 @@ const cardVariants = {
   }),
 };
 
-function SwipeCard({
+export function SwipeCard({
   movie,
   depth,
   enterFrom,
@@ -278,7 +280,7 @@ function SwipeCard({
 }: {
   movie: Movie;
   depth: number;
-  enterFrom: Choice | null;
+  enterFrom: Exit | null;
   onVote: (choice: Choice) => void;
   onOpen: () => void;
 }) {
@@ -423,7 +425,7 @@ const TONES = {
 const SIZES = { sm: "h-12 w-12 text-xl mt-3", md: "h-14 w-14 text-xl mt-2", lg: "h-[4.5rem] w-[4.5rem] text-3xl" } as const;
 
 /** Runder Abstimmknopf mit kleiner Beschriftung darunter (das Symbol allein war nicht eindeutig). */
-function VoteButton({
+export function VoteButton({
   label,
   ariaLabel,
   size,

@@ -41,6 +41,8 @@ export type Participant = {
   is_host: boolean;
   genre_ids: number[];
   genres_done: boolean;
+  /** angemeldetes Konto (nur auf dem Server, für den trainierten Geschmack) */
+  account_id: string | null;
 };
 
 export async function loadRoom(code: string): Promise<Room | null> {
@@ -60,7 +62,7 @@ export async function currentParticipant(room: Room): Promise<Participant | null
   if (!secret || secret.length > 100) return null;
   const me = await db()
     .selectFrom("participants")
-    .select(["id", "room_id", "name", "is_host", "genre_ids", "genres_done"])
+    .select(["id", "room_id", "name", "is_host", "genre_ids", "genres_done", "account_id"])
     .where("room_id", "=", room.id)
     .where("token_hash", "=", hashSecret(secret, env().APP_SECRET))
     .executeTakeFirst();

@@ -53,6 +53,11 @@ const EN: Record<string, string> = {
     "No matching movies found that are currently included in your subscriptions. Pick more services or genres.",
   "Gerade wird nicht abgestimmt": "Voting isn’t open right now",
   "Unbekannter Film": "Unknown movie",
+  "Die Anmeldung mit Google ist abgelaufen oder ungültig. Bitte nochmal versuchen.":
+    "Signing in with Google expired or is invalid. Please try again.",
+  "Dein Google-Konto hat keine E-Mail-Adresse freigegeben.": "Your Google account didn’t share an email address.",
+  "Du hast schon sehr viele Filme bewertet. Setz das Training zurück, um neu anzufangen.":
+    "You’ve already rated a lot of movies. Reset your training to start over.",
   "Nur der Host kann beenden": "Only the host can end the vote",
   "Die Abstimmung ist schon beendet": "Voting has already ended",
   "Gerade läuft keine Stichwahl": "There’s no runoff right now",
