@@ -41,10 +41,14 @@ html {
 }
 
 body {
-  /* Vorhangfalten, nur oben angedeutet */
+  /*
+    Vorhangfalten, nur oben angedeutet. Die Falten-Ebenen sind genau 280px hoch und wiederholen sich nicht nach unten:
+    html hat h-full (Fensterhöhe), ohne no-repeat tauchten die Falten sonst bei jeder Fensterhöhe als Streifen mitten
+    auf langen Seiten wieder auf.
+  */
   background:
-    linear-gradient(to bottom, transparent 0, var(--velvet) 280px),
-    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.22) 0 3px, transparent 3px 22px, rgb(255 255 255 / 0.03) 22px 24px, transparent 24px 44px),
+    linear-gradient(to bottom, transparent 0, var(--velvet) 280px) top / 100% 280px no-repeat,
+    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.22) 0 3px, transparent 3px 22px, rgb(255 255 255 / 0.03) 22px 24px, transparent 24px 44px) top / 100% 280px repeat-x,
     var(--velvet);
   color: var(--linen);
   font-family: var(--font-body), system-ui, sans-serif;
