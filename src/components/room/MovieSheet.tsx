@@ -87,7 +87,7 @@ export function MovieSheet({ movie, onClose, onVote }: { movie: Movie; onClose: 
   const imdbUrl = info?.imdbId ? `https://www.imdb.com/title/${info.imdbId}/` : `https://www.imdb.com/find/?s=tt&q=${query}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <motion.div
         className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
         initial={{ opacity: 0 }}

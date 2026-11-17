@@ -15,6 +15,7 @@ export const en: Messages = {
     rate: "Rate movie",
     train: "Train my Algorithm",
     invite: "Invitation",
+    iosApp: "iPhone app",
   },
   common: {
     loading: "Loading …",
@@ -465,5 +466,43 @@ export const en: Messages = {
     hideQr: "Hide QR",
     showQr: "Show QR code",
     qrAlt: "QR code to rate",
+  },
+  app: {
+    navLabel: "App navigation",
+    lobby: "Lobby",
+    watchlist: "Watchlist",
+    train: "Train",
+    account: "Account",
+    hintTitle: "Get Cinemood as an iPhone app",
+    hint: (share: ReactNode) => (
+      <>
+        Tap {share} Share, then “Add to Home Screen”. Free, no App Store needed.
+      </>
+    ),
+    hintMore: "How it works",
+    hintClose: "Close hint",
+    title: "Cinemood on your iPhone",
+    intro:
+      "Cinemood works like an app on iPhone and iPad, for free and without the App Store: add the page to your Home Screen once. After that it opens full screen with its own icon and a navigation bar at the bottom, and it is always up to date.",
+    stepsTitle: "Installed in 30 seconds",
+    steps: (share: ReactNode): ReactNode[] => [
+      "Open this page in Safari.",
+      <>
+        Tap the Share icon {share} (a square with an arrow pointing up). If you don’t see it, tap “···” in the bottom right first.
+      </>,
+      "Scroll down a little and tap “Add to Home Screen”.",
+      "Leave “Open as Web App” switched on and tap “Add” in the top right.",
+      "Done: from now on, open Cinemood from the new icon on your Home Screen.",
+    ],
+    otherBrowsers: "Chrome or Edge on the iPhone work the same way: Share icon next to the address bar, then “Add to Home Screen”.",
+    installed: "All set! You are using Cinemood as an app right now.",
+    loginTitle: "Signing in inside the app",
+    login:
+      "Under Account, with Google or by email. With email, it is best to type in the code from the email: the link in the email opens Safari, not the app.",
+    shareTitle: "Send it to friends",
+    share: "Just send your friends the link to this page. They install Cinemood the same way, for free.",
+    shareButton: "Share link",
+    android: "Android phone? There is a separate app for that:",
+    androidLink: "Download the phone app",
   },
 };
