@@ -19,6 +19,7 @@ const EN: Record<string, string> = {
   "Diese Crew ist voll": "This crew is full",
   "Nur wer die Crew angelegt hat, kann andere entfernen": "Only the person who created the crew can remove others",
   "Du bist allein in dieser Crew": "You’re the only one in this crew",
+  "Nur wer die Watchlist angelegt hat, kann sie löschen": "Only the person who created the watchlist can delete it",
   "Auf diesem Gerät gibt es noch keine Crew. Starte zuerst eine Runde.": "There’s no crew on this device yet. Start a round first.",
   "Runde nicht gefunden": "Round not found",
   "Du bist dieser Runde nicht beigetreten": "You haven’t joined this round",

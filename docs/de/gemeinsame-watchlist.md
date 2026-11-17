@@ -30,6 +30,9 @@ Gewinner landet dort.
 - Nur wer die Watchlist angelegt hat, darf andere entfernen.
 - Jedes Mitglied kann selbst **austreten**. Tritt die Person aus, die sie angelegt hat, übernimmt das Mitglied,
   das am längsten dabei ist.
+- Wer die Watchlist angelegt hat, kann sie unter **Teilen & verwalten → Watchlist löschen** löschen
+  (mit Rückfrage). Sie ist dann samt Filmen und Sternen für alle weg. Das geht auch bei einer eigenen,
+  nicht geteilten Watchlist.
 - Mitglieder sehen voneinander nur den Teil der E-Mail-Adresse vor dem @.
 
 ## Einladungslinks

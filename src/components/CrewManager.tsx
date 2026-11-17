@@ -130,6 +130,7 @@ function CrewPanel({ crewId, onChanged, onLeft }: { crewId: string; onChanged: (
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const t = useT();
@@ -264,21 +265,47 @@ function CrewPanel({ crewId, onChanged, onLeft }: { crewId: string; onChanged: (
         </div>
       </div>
 
-      {me && d.members.length > 1 && (
-        <div className="flex flex-col gap-1">
-          {d.owner && <p className="text-sm text-muted">{t.crews.leaveOwnerHint}</p>}
-          <button
-            className="self-start text-sm text-muted underline decoration-line underline-offset-4 hover:text-no"
-            disabled={busy}
-            onClick={() => {
-              if (!leaving) return setLeaving(true);
-              patch({ removeMember: me.id }, onLeft);
-            }}
-          >
-            {leaving ? t.crews.leaveSure : t.crews.leave}
-          </button>
-        </div>
-      )}
+      <div className="flex flex-col gap-3 border-t border-dashed border-line pt-3">
+        {me && d.members.length > 1 && (
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted">{d.owner ? t.crews.leaveOwnerHint : t.crews.leaveHint}</p>
+            <button
+              className="self-start text-sm text-muted underline decoration-line underline-offset-4 hover:text-no"
+              disabled={busy}
+              onClick={() => {
+                if (!leaving) return setLeaving(true);
+                patch({ removeMember: me.id }, onLeft);
+              }}
+            >
+              {leaving ? t.crews.leaveSure : t.crews.leave}
+            </button>
+          </div>
+        )}
+        {d.owner && (
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted">{t.crews.deleteHint}</p>
+            <button
+              className={`self-start text-sm underline decoration-line underline-offset-4 hover:text-no ${deleting ? "font-semibold text-no" : "text-muted"}`}
+              disabled={busy}
+              onClick={async () => {
+                if (!deleting) return setDeleting(true);
+                setBusy(true);
+                setError(null);
+                try {
+                  await api(`/api/crews/${crewId}`, { method: "DELETE", body: {} });
+                  onLeft();
+                  onChanged();
+                } catch (e) {
+                  setError((e as Error).message);
+                  setBusy(false);
+                }
+              }}
+            >
+              {deleting ? t.crews.deleteSure : t.crews.deleteList}
+            </button>
+          </div>
+        )}
+      </div>
       {error && <p className="text-sm text-no">{error}</p>}
     </div>
   );

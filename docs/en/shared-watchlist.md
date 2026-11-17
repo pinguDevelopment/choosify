@@ -28,6 +28,9 @@ The selected watchlist is also used for new rounds: its movies aren't suggested,
 - All members can add, remove and rate movies, rename the watchlist and create new invite links.
 - Only the person who created it can remove others.
 - Every member can **leave**. If the creator leaves, the member who's been in it the longest takes over.
+- The person who created the watchlist can delete it under **Share & manage → Delete watchlist**
+  (asks once more). It's then gone for everyone, with all movies and stars. This works for your own,
+  unshared watchlists too.
 - Members only see the part of each other's email address before the @.
 
 ## Invite links

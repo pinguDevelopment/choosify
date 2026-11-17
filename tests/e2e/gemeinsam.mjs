@@ -116,6 +116,26 @@ assert.deepEqual(miaCrews, ["Nur ich"]);
 assert.equal((await json(mia, `/api/crews/${crewId}`)).status, 404);
 log("Mitglied entfernt");
 
+// Löschen: Mitglieder dürfen nicht, wer sie angelegt hat schon (über die Oberfläche, mit Rückfrage)
+const again = (await json(lena, `/api/crews/${crewId}`, "PATCH", { invite: "new" })).body.invite.token;
+assert.equal((await json(mia, `/api/einladung/${again}`, "POST", {})).status, 200);
+assert.equal((await json(mia, `/api/crews/${crewId}`, "DELETE", {})).status, 403);
+await lena.goto(`${BASE}/konto`);
+const row = lena.locator("li", { hasText: "Wir zwei" });
+await row.getByRole("button", { name: "Teilen & verwalten" }).click();
+await row.getByRole("button", { name: "Watchlist löschen" }).click();
+await row.getByRole("button", { name: "Wirklich löschen? Nochmal tippen" }).click();
+await lena.getByRole("radio", { name: /Wir zwei/ }).waitFor({ state: "detached" });
+assert.deepEqual((await json(lena, "/api/konto")).body.account.crews.map((c) => c.name), ["Crew von Lena"]);
+assert.deepEqual((await json(mia, "/api/konto")).body.account.crews.map((c) => c.name), ["Nur ich"]);
+assert.deepEqual(await titles(lena), own, "Lenas eigene Watchlist ist wieder aktiv");
+// Eigene Watchlist ganz allein löschen geht auch
+assert.equal((await json(mia, "/api/konto")).body.account.crews.length, 1);
+const miaOwn = (await json(mia, "/api/konto")).body.account.crews[0].id;
+assert.equal((await json(mia, `/api/crews/${miaOwn}`, "DELETE", {})).status, 200);
+assert.deepEqual((await json(mia, "/api/konto")).body.account.crews, []);
+log("Watchlists löschen: nur wer sie angelegt hat, mit Rückfrage");
+
 // Alte Adresse /abspann leitet auf /watchlist weiter
 await lena.goto(`${BASE}/abspann`);
 await lena.waitForURL(/\/watchlist$/);
