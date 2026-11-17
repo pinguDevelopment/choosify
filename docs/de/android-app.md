@@ -9,6 +9,12 @@ und sind auf jedem Gerät da, auf dem du dich mit demselben Google-Konto anmelde
 
 Gäste brauchen weder die App noch ein Konto. Sie scannen den QR-Code und machen im Browser mit.
 
+## Navigationsleiste
+
+Unten in der App wechselst du mit einem Tipp zwischen **Lobby** (Runde starten oder beitreten),
+**Watchlist**, **Trainieren** (Train my Algorithm) und **Konto**. Tippst du auf den Bereich, in dem du
+schon bist, springt die Seite nach oben. Beim Tippen (Tastatur offen) blendet sich die Leiste aus.
+
 ## Herunterladen und installieren
 
 1. Am Handy im Browser `cinemood.yugusaa.de/handy-app` öffnen. Das lädt die aktuelle APK

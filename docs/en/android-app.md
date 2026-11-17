@@ -9,6 +9,12 @@ and are there on every device where you sign in with the same Google account.
 
 Guests need neither the app nor an account. They scan the QR code and join in the browser.
 
+## Navigation bar
+
+At the bottom of the app, one tap switches between **Lobby** (start or join a round), **Watchlist**,
+**Train** (Train my Algorithm) and **Account**. Tapping the section you're already in scrolls to the top.
+While typing (keyboard open), the bar hides.
+
 ## Download and install
 
 1. On your phone, open `cinemood.yugusaa.de/handy-app` in the browser. This downloads the current APK

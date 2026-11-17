@@ -34,4 +34,8 @@
     <string name="update_permission_manual">Öffne die Einstellungen des Handys und erlaube Cinemood, unbekannte Apps zu installieren (Einstellungen → Apps → Cinemood → Unbekannte Apps installieren). Danach nochmal „Installieren“ wählen.</string>
     <string name="login_failed">Die Anmeldung mit Google hat nicht geklappt. Bitte nochmal versuchen.</string>
     <string name="login_no_browser">Kein Browser für die Google-Anmeldung gefunden.</string>
+    <string name="nav_lobby">Lobby</string>
+    <string name="nav_watchlist">Watchlist</string>
+    <string name="nav_train">Trainieren</string>
+    <string name="nav_account">Konto</string>
 </resources>
