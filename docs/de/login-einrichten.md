@@ -17,6 +17,9 @@ Es gibt zwei Wege zur Anmeldung, beide führen zum selben Konto, wenn die E-Mail
 Im Supabase-Dashboard unter **SQL Editor** den kompletten Inhalt von `supabase/update-auf-aktuell.sql` einfügen und **Run** klicken.
 Die Prüfung ganz unten muss ein leeres Ergebnis liefern.
 
+Alles von vorn: `supabase/neu-aufsetzen.sql` löscht **alle** Cinemood-Daten (Runden, Konten-Daten, Watchlists, Training)
+und legt die Datenbank leer auf dem aktuellen Stand neu an. Die Logins in Supabase Auth bleiben erhalten.
+
 ## 2. E-Mail-Login einschalten
 
 **Authentication → Sign In / Providers → Email**
