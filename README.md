@@ -1,7 +1,5 @@
 # Cinemood
 
-**Developed by / Entwickelt von [pinguDevelopment](https://github.com/pinguDevelopment)** · © 2026
-
 Find a movie together, fast. Everyone joins by QR code, picks genres and swipes movies.
 The movie most people want to watch wins.
 
