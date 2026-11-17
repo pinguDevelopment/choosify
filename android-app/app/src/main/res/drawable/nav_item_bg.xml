@@ -1,7 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Antippen zeigt eine goldene Welle -->
-<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="#33ffc94d">
-    <item android:id="@android:id/mask">
-        <color android:color="#FFFFFFFF" />
-    </item>
-</ripple>
+<!-- Antippen zeigt eine goldene Welle rund um die Bubble -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="#33ffc94d" android:radius="36dp" />

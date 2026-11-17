@@ -190,16 +190,44 @@ body {
   Home-Balken (viewport-fit=cover). Oben Platz für die Uhrzeit, unten für die Navigationsleiste.
 */
 html.app {
+  --app-nav-h: 6rem;
   background: var(--velvet);
+  /*
+    iOS-Fehler bei Web-Apps mit durchsichtiger Statusleiste: Ist eine Seite kürzer als der Bildschirm,
+    rechnet Safari die Höhe ohne Statusleiste und alles mit "bottom: 0" rutscht um genau diese Höhe
+    nach oben (Leiste schwebt über einem leeren Streifen). Die Seite deshalb immer um die Statusleiste
+    höher machen, dann sitzt die Leiste auf jeder Seite unten.
+  */
+  height: auto;
+  min-height: calc(100% + env(safe-area-inset-top));
 }
 html.app body {
+  min-height: calc(100vh + env(safe-area-inset-top));
+  overflow-x: clip;
   padding-top: env(safe-area-inset-top);
-  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--app-nav-h) + env(safe-area-inset-bottom));
 }
 body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
 .app-nav {
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+}
+/*
+  Leiste unter den Bubbles: beginnt auf halber Bubble-Höhe, ist oben gerade und hat unter jeder
+  Bubble (Durchmesser 3.5rem) eine runde Mulde mit etwas Luft. Die Mulden kommen aus einer Maske,
+  die sich alle 100%/Anzahl wiederholt, so sitzt jede genau unter ihrem Eintrag.
+*/
+/* Leiste (SVG aus AppNav): beginnt auf halber Bubble-Höhe, Rand und Schatten folgen den Mulden */
+.app-nav-edge {
+  position: absolute;
+  inset: 1.75rem 0 0 0;
+  filter: drop-shadow(0 -8px 14px rgb(0 0 0 / 0.4));
+}
+.app-nav-bubble {
+  box-shadow: inset 0 0 0 1px rgb(122 42 60 / 0.8), 0 6px 16px rgb(0 0 0 / 0.35);
+}
+.app-nav-bubble.bg-accent {
+  box-shadow: 0 6px 20px rgb(255 201 77 / 0.35);
 }

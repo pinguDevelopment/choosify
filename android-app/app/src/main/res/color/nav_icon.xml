@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Symbol in der Bubble: auf der goldenen (aktiven) Bubble dunkel, sonst gedämpft -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/bg" android:state_selected="true" />
+    <item android:color="@color/cream_dim" />
+</selector>

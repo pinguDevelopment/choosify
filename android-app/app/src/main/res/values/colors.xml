@@ -2,6 +2,10 @@
 <resources>
     <color name="bg">#2a0a14</color>
     <color name="bg_light">#3d1220</color>
+    <!-- Navigationsleiste unten (wie in der Web-App) -->
+    <color name="bar">#45101f</color>
+    <color name="bar_edge">#7a2a3c</color>
+    <color name="bubble">#5a1628</color>
     <color name="gold">#ffc94d</color>
     <color name="cream">#f6e7da</color>
     <color name="cream_dim">#c9b3a6</color>

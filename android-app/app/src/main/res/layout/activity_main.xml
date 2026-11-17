@@ -73,36 +73,36 @@
     </LinearLayout>
     </FrameLayout>
 
-    <!-- Navigationsleiste unten: Lobby, Watchlist, Train my Algorithm, Konto -->
-    <LinearLayout
+    <!-- Navigationsleiste unten: Lobby, Watchlist, Train my Algorithm, Konto (runde Bubbles, Form in NavBar) -->
+    <app.cinemood.handy.NavBar
         android:id="@+id/nav"
         android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:background="@color/bg_light"
+        android:layout_height="wrap_content"
+        android:paddingTop="6dp"
         android:orientation="horizontal">
 
         <TextView
             android:id="@+id/nav_lobby"
             style="@style/NavItem"
-            android:drawableTop="@drawable/nav_lobby"
+            android:drawableTop="@drawable/nav_bubble_lobby"
             android:text="@string/nav_lobby" />
 
         <TextView
             android:id="@+id/nav_watchlist"
             style="@style/NavItem"
-            android:drawableTop="@drawable/nav_watchlist"
+            android:drawableTop="@drawable/nav_bubble_watchlist"
             android:text="@string/nav_watchlist" />
 
         <TextView
             android:id="@+id/nav_train"
             style="@style/NavItem"
-            android:drawableTop="@drawable/nav_train"
+            android:drawableTop="@drawable/nav_bubble_train"
             android:text="@string/nav_train" />
 
         <TextView
             android:id="@+id/nav_account"
             style="@style/NavItem"
-            android:drawableTop="@drawable/nav_account"
+            android:drawableTop="@drawable/nav_bubble_account"
             android:text="@string/nav_account" />
-    </LinearLayout>
+    </app.cinemood.handy.NavBar>
 </LinearLayout>
