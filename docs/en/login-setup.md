@@ -17,6 +17,9 @@ There are two ways to sign in; both lead to the same account if the email addres
 In the Supabase dashboard under **SQL Editor**, paste the full contents of `supabase/update-auf-aktuell.sql` and click **Run**.
 The check at the very bottom must return an empty result.
 
+Starting over: `supabase/neu-aufsetzen.sql` deletes **all** Cinemood data (rounds, account data, watchlists, training)
+and recreates an empty database on the current version. Sign-ins in Supabase Auth are kept.
+
 ## 2. Turn on email sign-in
 
 **Authentication → Sign In / Providers → Email**
