@@ -156,3 +156,14 @@ export async function removeMember(accountId: string, crewId: string, memberId: 
   }
   await db().deleteFrom("crew_members").where("crew_id", "=", crewId).where("account_id", "=", memberId).execute();
 }
+
+/**
+ * Watchlist samt Filmen und Sternen löschen. Nur wer sie angelegt hat, darf das (auch wenn sie
+ * geteilt ist, dann ist sie für alle weg). Mitglieder treten stattdessen aus.
+ * Runden, die die Crew benutzt haben, laufen ohne Crew weiter (crew_id wird null).
+ */
+export async function deleteCrew(accountId: string, crewId: string) {
+  const crew = await crewOf(accountId, crewId);
+  if (!crew.owner) throw new AppError(403, "Nur wer die Watchlist angelegt hat, kann sie löschen");
+  await db().deleteFrom("crews").where("id", "=", crewId).where("account_id", "=", accountId).execute();
+}

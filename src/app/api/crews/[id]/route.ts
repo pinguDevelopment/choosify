@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { currentAccount } from "@/lib/server/account";
-import { createInvite, crewMembers, removeMember, renameCrew, stopInvite } from "@/lib/server/crews";
+import { createInvite, crewMembers, deleteCrew, removeMember, renameCrew, stopInvite } from "@/lib/server/crews";
 import { checkSameOrigin, limited, limitedShared, parseBody } from "@/lib/server/guard";
 import { handle, jsonError } from "@/lib/server/http";
 import { crewPatchSchema } from "@/lib/server/schemas";
@@ -38,5 +38,19 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/crews/[id]
     if (invite === "stop") await stopInvite(account.id, id);
     if (member) await removeMember(account.id, id, member);
     return Response.json({ ok: true, invite: link });
+  });
+}
+
+/** Watchlist löschen (nur wer sie angelegt hat). */
+export async function DELETE(req: NextRequest, ctx: RouteContext<"/api/crews/[id]">) {
+  const blocked = checkSameOrigin(req) ?? (await limitedShared(req, "crew-write", 10, 15));
+  if (blocked) return blocked;
+  const { id } = await ctx.params;
+  return handle(async () => {
+    const account = await currentAccount();
+    if (!account) return jsonError(401, "Nicht angemeldet");
+    if (!isId(id)) return jsonError(404, "Crew nicht gefunden");
+    await deleteCrew(account.id, id);
+    return Response.json({ ok: true });
   });
 }
