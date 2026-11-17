@@ -45,7 +45,12 @@ export async function generateMetadata(): Promise<Metadata> {
     // iPhone: „Zum Home-Bildschirm“ startet Cinemood wie eine App (Vollbild, eigenes Symbol, Startbild).
     // Anleitung für Nutzer: /ios-app, docs/de/iphone-app.md
     appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "black-translucent", startupImage: STARTUP_IMAGES },
-    icons: { apple: [{ url: "/app/apple-touch-icon.png", sizes: "180x180", type: "image/png" }] },
+    // Wer hier `icons` setzt, überschreibt das automatische Favicon aus src/app/icon.svg.
+    // Deshalb steht das Favicon hier ausdrücklich mit drin (public/icon.svg, gleiche Datei).
+    icons: {
+      icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+      apple: [{ url: "/app/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
   };
 }
 
