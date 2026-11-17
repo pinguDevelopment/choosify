@@ -1,11 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/next";
+import { AppNav } from "@/components/AppNav";
 import { Big_Shoulders, Big_Shoulders_Inline, Figtree } from "next/font/google";
 import { I18nProvider } from "@/components/I18nProvider";
 import { LOCALES } from "@/lib/i18n/config";
 import { MESSAGES } from "@/lib/i18n/messages";
 import { AUTHOR, AUTHOR_URL, REPO_URL } from "@/lib/i18n/brand";
 import { APP_NAME, pageLocale } from "@/lib/i18n/page";
+import { accountsEnabled } from "@/lib/server/db";
 import "./globals.css";
 
 // Big Shoulders: schmale Groteske nach Chicagoer Kino- und Straßenschildern.
@@ -39,14 +42,30 @@ export async function generateMetadata(): Promise<Metadata> {
     description: t.meta.description,
     authors: [{ name: AUTHOR, url: AUTHOR_URL }],
     creator: AUTHOR,
+    // iPhone: „Zum Home-Bildschirm“ startet Cinemood wie eine App (Vollbild, eigenes Symbol, Startbild).
+    // Anleitung für Nutzer: /ios-app, docs/de/iphone-app.md
+    appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "black-translucent", startupImage: STARTUP_IMAGES },
+    icons: { apple: [{ url: "/app/apple-touch-icon.png", sizes: "180x180", type: "image/png" }] },
   };
 }
+
+// Startbilder fürs iPhone (sonst ist der Start weiß). Erzeugt in public/app/, eins pro Bildschirmgröße.
+// [Breite, Höhe in CSS-Pixeln, Pixeldichte]
+const SPLASH_SIZES = [
+  [440, 956, 3], [430, 932, 3], [428, 926, 3], [414, 896, 3], [414, 896, 2],
+  [402, 874, 3], [393, 852, 3], [390, 844, 3], [375, 812, 3], [375, 667, 2],
+] as const;
+const STARTUP_IMAGES = SPLASH_SIZES.map(([w, h, d]) => ({
+  url: `/app/splash-${w * d}x${h * d}.png`,
+  media: `(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${d}) and (orientation: portrait)`,
+}));
 
 // Vercel Analytics nur, wenn die App auf Vercel läuft (dort ist VERCEL=1 gesetzt).
 // Beim Self-Hosting (Docker) gibt es /_vercel/insights nicht, dann wird nichts eingebunden.
 const onVercel = process.env.VERCEL === "1";
 
-export const viewport: Viewport = { themeColor: "#2A0A14", width: "device-width", initialScale: 1 };
+// viewportFit cover: Als App auf dem iPhone reicht die Seite bis unter Statusleiste und Home-Balken (Abstände in globals.css)
+export const viewport: Viewport = { themeColor: "#2A0A14", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 // suppressHydrationWarning: Browser-Erweiterungen (z.B. data-qb-installed) setzen Attribute auf <html>,
 // bevor React lädt. Gilt nur für dieses eine Element, nicht für die Kinder.
@@ -67,6 +86,10 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
             GitHub
           </a>
         </footer>
+        {/* Suspense: Die Leiste liest die Adresse (usePathname), das darf das Vorrendern nicht aufhalten */}
+        <Suspense fallback={null}>
+          <AppNav accounts={accountsEnabled()} />
+        </Suspense>
         {onVercel && <Analytics />}
       </body>
     </html>

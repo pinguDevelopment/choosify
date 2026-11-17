@@ -180,3 +180,22 @@ body {
     transition-duration: 1ms !important;
   }
 }
+
+/*
+  Als App vom Home-Bildschirm (Klasse "app" setzt AppNav): Die Seite reicht bis unter Statusleiste und
+  Home-Balken (viewport-fit=cover). Oben Platz für die Uhrzeit, unten für die Navigationsleiste.
+*/
+html.app {
+  background: var(--velvet);
+}
+html.app body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+}
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.app-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+}

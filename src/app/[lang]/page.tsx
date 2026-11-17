@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CreateRoom } from "@/components/CreateRoom";
+import { IosInstallHint } from "@/components/IosInstallHint";
 import { JoinByCode } from "@/components/JoinByCode";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { LoginLinkFallback } from "@/components/LoginLinkFallback";
@@ -19,6 +20,7 @@ export default async function Home() {
         <p className="text-lg text-muted">{t.home.tagline}</p>
       </header>
       <LoginLinkFallback />
+      <IosInstallHint />
       <CreateRoom />
       <JoinByCode />
       <Link href="/watchlist" className="text-muted underline decoration-line underline-offset-4 hover:text-text">

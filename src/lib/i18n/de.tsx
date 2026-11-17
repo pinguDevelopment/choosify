@@ -14,6 +14,7 @@ export const de = {
     rate: "Film bewerten",
     train: "Train my Algorithm",
     invite: "Einladung",
+    iosApp: "iPhone-App",
   },
   common: {
     loading: "Lade …",
@@ -469,6 +470,44 @@ export const de = {
     hideQr: "QR ausblenden",
     showQr: "QR-Code zeigen",
     qrAlt: "QR-Code zum Bewerten",
+  },
+  app: {
+    navLabel: "App-Navigation",
+    lobby: "Lobby",
+    watchlist: "Watchlist",
+    train: "Trainieren",
+    account: "Konto",
+    hintTitle: "Cinemood als App aufs iPhone",
+    hint: (share: ReactNode) => (
+      <>
+        Tippe auf {share} Teilen und dann auf „Zum Home-Bildschirm“. Kostenlos, ohne App Store.
+      </>
+    ),
+    hintMore: "So geht’s",
+    hintClose: "Hinweis schließen",
+    title: "Cinemood aufs iPhone",
+    intro:
+      "Cinemood läuft auf iPhone und iPad wie eine App, kostenlos und ohne App Store: Du legst die Seite einmal auf den Home-Bildschirm. Danach startet sie mit eigenem Symbol im Vollbild, mit Navigationsleiste unten, und ist immer auf dem neuesten Stand.",
+    stepsTitle: "In 30 Sekunden installiert",
+    steps: (share: ReactNode): ReactNode[] => [
+      "Öffne diese Seite in Safari.",
+      <>
+        Tippe auf das Teilen-Symbol {share} (Quadrat mit Pfeil nach oben). Siehst du es nicht, tippe zuerst unten rechts auf „···“.
+      </>,
+      "Scrolle etwas nach unten und tippe auf „Zum Home-Bildschirm“.",
+      "„Als Web-App öffnen“ eingeschaltet lassen und oben rechts auf „Hinzufügen“ tippen.",
+      "Fertig: Starte Cinemood ab jetzt über das neue Symbol auf deinem Home-Bildschirm.",
+    ],
+    otherBrowsers: "In Chrome oder Edge auf dem iPhone geht es genauso: Teilen-Symbol neben der Adresszeile, dann „Zum Home-Bildschirm“.",
+    installed: "Fertig! Du nutzt Cinemood gerade als App.",
+    loginTitle: "Anmelden in der App",
+    login:
+      "Unter Konto mit Google oder per Mail. Bei der Mail tippst du am besten den Code aus der Mail ein: Der Link in der Mail öffnet Safari und nicht die App.",
+    shareTitle: "Freunden schicken",
+    share: "Schick deinen Freunden einfach den Link zu dieser Seite. Sie installieren Cinemood genauso, kostenlos.",
+    shareButton: "Link teilen",
+    android: "Android-Handy? Dafür gibt es eine eigene App:",
+    androidLink: "Handy-App herunterladen",
   },
 };
 

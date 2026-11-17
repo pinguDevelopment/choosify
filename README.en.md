@@ -43,6 +43,7 @@ see [docs/en/self-hosting.md](docs/en/self-hosting.md).
 ## Apps
 
 - Phone (Android): [docs/en/android-app.md](docs/en/android-app.md), download at `/handy-app`
+- iPhone and iPad (free, Add to Home Screen): [docs/en/iphone-app.md](docs/en/iphone-app.md), guide at `/ios-app`
 - TV (Android TV / Fire TV): [docs/en/android-tv.md](docs/en/android-tv.md), download at `/tv-app`
 - Setting up sign-in with Google or email: [docs/en/login-setup.md](docs/en/login-setup.md)
 - Train my Algorithm (train your own taste): [docs/en/train-my-algorithm.md](docs/en/train-my-algorithm.md)
