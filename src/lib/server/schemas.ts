@@ -88,3 +88,15 @@ export const tvStatusSchema = z.object({ secret: z.string().regex(/^[A-Za-z0-9_-
 export const trainingVoteSchema = voteSchema;
 export const trainingBatchSchema = z.object({ exclude: z.array(tmdbIdSchema).max(300).default([]) });
 export const trainingPatchSchema = z.object({ useInGroups: z.boolean() });
+
+// ---- Gemeinsame Watchlist (Crews mit mehreren Konten) ----
+export const crewCreateSchema = z.object({ name: nameSchema });
+export const crewPatchSchema = z
+  .object({
+    name: nameSchema.optional(),
+    // "new" = neuen Einladungslink erzeugen (ersetzt den alten), "stop" = Link ungültig machen
+    invite: z.enum(["new", "stop"]).optional(),
+    // Konto entfernen (das eigene = austreten)
+    removeMember: z.uuid().optional(),
+  })
+  .refine((v) => v.name || v.invite || v.removeMember, "leer");

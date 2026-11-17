@@ -1,7 +1,8 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { cookieBase } from "./cookie-opts";
-import { accountsEnabled, db, upsert } from "./db";
+import { accountsEnabled, countAll, db, upsert } from "./db";
+import { isOutdatedSchema } from "./http";
 import { env } from "./env";
 import { hashSecret, newSecret } from "./tokens";
 
@@ -71,17 +72,62 @@ export function mergeFavorites(a: Favorites, b: Favorites): Favorites {
   return { ids: [...new Set([...a.ids, ...b.ids])].slice(0, 60), other: a.other || b.other };
 }
 
-export type AccountCrew = { id: string; name: string };
+export type AccountCrew = {
+  id: string;
+  name: string;
+  /** Konto hat die Crew angelegt (darf Mitglieder entfernen) */
+  owner: boolean;
+  /** Anzahl Konten in der Crew (1 = nur du) */
+  members: number;
+};
 
-/** Crews des Kontos, zuletzt benutzte zuerst. */
+/**
+ * Crews des Kontos, zuletzt benutzte zuerst: eigene und solche, in die das Konto
+ * eingeladen wurde (gemeinsame Watchlist und gemeinsamer Abspann).
+ */
 export async function accountCrews(accountId: string): Promise<AccountCrew[]> {
-  return db()
-    .selectFrom("crews")
-    .select(["id", "name"])
-    .where("account_id", "=", accountId)
-    .orderBy("last_used_at", "desc")
-    .limit(MAX_CREWS_PER_ACCOUNT)
-    .execute();
+  let rows: { id: string; name: string; account_id: string | null }[];
+  try {
+    rows = await db()
+      .selectFrom("crews")
+      .select(["id", "name", "account_id"])
+      .where((eb) =>
+        eb.or([
+          eb("account_id", "=", accountId),
+          eb("id", "in", eb.selectFrom("crew_members").select("crew_id").where("account_id", "=", accountId)),
+        ]),
+      )
+      .orderBy("last_used_at", "desc")
+      .limit(MAX_CREWS_PER_ACCOUNT)
+      .execute();
+  } catch (err) {
+    // Update-SQL für gemeinsame Crews noch nicht eingespielt: wie bisher nur eigene Crews
+    if (!isOutdatedSchema(err)) throw err;
+    const own = await db()
+      .selectFrom("crews")
+      .select(["id", "name"])
+      .where("account_id", "=", accountId)
+      .orderBy("last_used_at", "desc")
+      .limit(MAX_CREWS_PER_ACCOUNT)
+      .execute();
+    return own.map((c) => ({ ...c, owner: true, members: 1 }));
+  }
+  const counts = new Map<string, number>();
+  if (rows.length) {
+    const n = await db()
+      .selectFrom("crew_members")
+      .select(["crew_id", countAll()])
+      .where("crew_id", "in", rows.map((r) => r.id))
+      .groupBy("crew_id")
+      .execute();
+    for (const r of n) counts.set(r.crew_id, Number(r.n));
+  }
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    owner: r.account_id === accountId,
+    members: (r.account_id ? 1 : 0) + (counts.get(r.id) ?? 0),
+  }));
 }
 
 export async function selectCrew(crewId: string): Promise<void> {

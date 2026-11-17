@@ -4,7 +4,7 @@
 
 Cinemood also runs without Supabase and Vercel on your own machine (Raspberry Pi, NAS, server).
 The data is then stored in an **SQLite file** or in **MariaDB/MySQL**. There is no email sign-in
-when self-hosting: everyone simply joins by QR code, and the crew and the credits are tied to the
+when self-hosting: everyone simply joins by QR code, and the crew and the watchlist are tied to the
 host's browser.
 
 ## Quick start with Docker (SQLite)

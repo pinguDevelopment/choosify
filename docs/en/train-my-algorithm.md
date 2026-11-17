@@ -23,7 +23,7 @@ Anyone who joins (or creates) a round **signed in** brings their taste along:
 
 - **Movie selection:** when the round starts, movies with genres and tags the trained people enjoy move up,
   disliked ones move down. Several trained people are averaged so nobody decides the round alone. The crew's
-  star ratings from the credits still count as before (half each). A movie someone explicitly marked
+  star ratings from the watchlist still count as before (half each). A movie someone explicitly marked
   "Not for me" drops noticeably.
 - **Own order:** each trained person sees movies matching their taste a bit earlier in their stack.
   Everyone still swipes the same movies.

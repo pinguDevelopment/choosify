@@ -23,7 +23,7 @@ Wer **angemeldet** einer Runde beitritt (oder sie erstellt), bringt seinen Gesch
 
 - **Filmauswahl:** Beim Start der Runde rücken Filme mit Genres und Tags, die den Trainierten gefallen,
   nach vorne, und unbeliebte nach hinten. Mehrere Trainierte werden gemittelt, damit niemand die Runde
-  allein bestimmt. Die Sterne aus dem Abspann der Crew zählen wie bisher mit (je zur Hälfte).
+  allein bestimmt. Die Sterne aus der Watchlist der Crew zählen wie bisher mit (je zur Hälfte).
   Ein Film, den jemand ausdrücklich mit „Nicht meins“ bewertet hat, rutscht deutlich nach hinten.
 - **Eigene Reihenfolge:** Jede trainierte Person sieht Filme nach ihrem Geschmack etwas früher in ihrem Stapel.
   Alle swipen trotzdem dieselben Filme.

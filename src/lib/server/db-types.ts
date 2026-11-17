@@ -18,6 +18,15 @@ export interface DB {
     account_id: string | null;
     created_at: Timestamp;
     last_used_at: Timestamp;
+    /** HMAC des aktuellen Einladungslinks, null = kein Link */
+    invite_hash: ColumnType<string | null, string | null | undefined, string | null>;
+    invite_expires_at: ColumnType<string | null, string | null | undefined, string | null>;
+  };
+  /** Weitere Konten einer gemeinsamen Crew (die Besitzerin steht in crews.account_id) */
+  crew_members: {
+    crew_id: string;
+    account_id: string;
+    joined_at: Timestamp;
   };
   abspann: {
     crew_id: string;

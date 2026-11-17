@@ -158,6 +158,19 @@ const SQLITE: string[][] = [
     )`,
     `create index if not exists training_votes_recent_idx on training_votes(account_id, voted_at)`,
   ],
+  // 3) Gemeinsame Crews (mehrere Konten), Einladungslink
+  [
+    `create table if not exists crew_members (
+      crew_id text not null references crews(id) on delete cascade,
+      account_id text not null references accounts(id) on delete cascade,
+      joined_at text not null default ${SQLITE_NOW},
+      primary key (crew_id, account_id)
+    )`,
+    `create index if not exists crew_members_account_idx on crew_members(account_id)`,
+    `alter table crews add column invite_hash text`,
+    `alter table crews add column invite_expires_at text`,
+    `create unique index if not exists crews_invite_hash_idx on crews(invite_hash)`,
+  ],
 ];
 
 // MariaDB/MySQL: Namen in Unique-Indizes ohne Unterscheidung von Groß/Klein über die Sortierung (_ci).
@@ -320,6 +333,20 @@ const MYSQL: string[][] = [
       index training_votes_recent_idx (account_id, voted_at),
       foreign key (account_id) references accounts(id) on delete cascade
     ) ${T}`,
+  ],
+  // 3) Gemeinsame Crews (mehrere Konten), Einladungslink
+  [
+    `create table if not exists crew_members (
+      crew_id char(36) not null,
+      account_id char(36) not null,
+      joined_at datetime(3) not null default ${MYSQL_NOW},
+      primary key (crew_id, account_id),
+      index crew_members_account_idx (account_id),
+      foreign key (crew_id) references crews(id) on delete cascade,
+      foreign key (account_id) references accounts(id) on delete cascade
+    ) ${T}`,
+    `alter table crews add column invite_hash char(64) null, add column invite_expires_at datetime(3) null,
+      add unique key crews_invite_hash_idx (invite_hash)`,
   ],
 ];
 

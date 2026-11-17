@@ -37,7 +37,7 @@ async function loadTarget(token: string, locale: Locale) {
     .where("a.crew_id", "=", t.crewId)
     .where("a.tmdb_id", "=", t.tmdbId)
     .executeTakeFirst();
-  if (!data) throw new AppError(404, "Diesen Film gibt es im Abspann nicht mehr");
+  if (!data) throw new AppError(404, "Diesen Film gibt es auf der Watchlist nicht mehr");
   return {
     crewId: data.crew_id,
     tmdbId: data.tmdb_id,
@@ -102,7 +102,7 @@ export async function rate(token: string, name: string, stars: number) {
   } catch (err) {
     if (isUniqueViolation(err)) throw new AppError(409, "Diesen Namen hat bei diesem Film schon jemand anderes benutzt");
     if (isLimitViolation(err)) throw new AppError(409, "Diesen Film haben schon genug Leute bewertet");
-    if (isForeignKeyViolation(err)) throw new AppError(404, "Diesen Film gibt es im Abspann nicht mehr");
+    if (isForeignKeyViolation(err)) throw new AppError(404, "Diesen Film gibt es auf der Watchlist nicht mehr");
     throw err;
   }
 }

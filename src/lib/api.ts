@@ -33,6 +33,6 @@ export type Provider = { id: number; name: string; logoPath: string | null; feat
 export type AccountInfo = {
   email: string;
   favorites: { ids: number[]; other: boolean };
-  crews: { id: string; name: string; active: boolean }[];
+  crews: { id: string; name: string; owner: boolean; members: number; active: boolean }[];
   deviceCrew: { name: string } | null;
 };

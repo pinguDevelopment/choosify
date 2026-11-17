@@ -4,7 +4,7 @@
 
 Die App **Cinemood** fürs Handy und Tablet kann alles, was die Webseite kann: Runde erstellen, Freunde per
 QR-Code einladen, Genres wählen und abstimmen. Dazu kommt die **Anmeldung mit Google**: Einmal antippen,
-Google-Konto auswählen, fertig. Deine Crews, der Abspann und deine Lieblingsdienste hängen an diesem Konto
+Google-Konto auswählen, fertig. Deine Crews, die Watchlist und deine Lieblingsdienste hängen an diesem Konto
 und sind auf jedem Gerät da, auf dem du dich mit demselben Google-Konto anmeldest.
 
 Gäste brauchen weder die App noch ein Konto. Sie scannen den QR-Code und machen im Browser mit.

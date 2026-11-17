@@ -1,9 +1,11 @@
 "use client";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { api, type AccountInfo } from "@/lib/api";
 import { loadLocalFavorites, saveLocalFavorites } from "@/lib/favorites";
 import { useT } from "@/components/I18nProvider";
+import { CrewManager } from "@/components/CrewManager";
+import { takePendingInvite } from "@/lib/invite";
 
 export function KontoClient() {
   const [account, setAccount] = useState<AccountInfo | null | undefined>(undefined);
@@ -11,6 +13,7 @@ export function KontoClient() {
   const [googleFailed, setGoogleFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const t = useT();
+  const router = useRouter();
 
   const load = useCallback(() => {
     // Rückkehr von der Google-Anmeldung: ?google=1 (geklappt) oder ?google=fehler
@@ -31,13 +34,21 @@ export function KontoClient() {
             d.account.favorites = merged;
           }
         }
+        if (d.account) {
+          // Kam die Person über eine Einladung hierher, geht es nach dem Anmelden dorthin zurück
+          const invite = takePendingInvite();
+          if (invite) {
+            router.replace(`/einladung/${invite}`);
+            return;
+          }
+        }
         setAccount(d.account);
         setGoogle(d.google === true);
         if (fromGoogle) setGoogleFailed(fromGoogle === "fehler");
         if (d.account) saveLocalFavorites(d.account.favorites);
       })
       .catch((e) => setError(e.message));
-  }, []);
+  }, [router]);
   useEffect(load, [load]);
 
   if (account === undefined) return <p className="text-muted">{error ?? t.common.loading}</p>;
@@ -213,41 +224,7 @@ function AccountView({ account, reload }: { account: AccountInfo; reload: () => 
         </section>
       )}
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-2xl">{t.account.crews}</h2>
-        {account.crews.length === 0 ? (
-          <p className="text-muted">
-            {t.account.noCrews}{" "}
-            <Link href="/" className="underline underline-offset-4">
-              {t.common.startRound}
-            </Link>
-          </p>
-        ) : (
-          <>
-            {account.crews.length > 1 && (
-              <p className="text-sm text-muted">{t.account.activeHint}</p>
-            )}
-            <ul className="flex flex-col gap-2" role="radiogroup" aria-label={t.account.activeCrew}>
-              {account.crews.map((c) => (
-                <li key={c.id}>
-                  <button
-                    role="radio"
-                    aria-checked={c.active}
-                    disabled={busy}
-                    onClick={() => !c.active && run(() => api("/api/konto", { method: "PATCH", body: { crewId: c.id } }))}
-                    className={`flex w-full items-center justify-between rounded-xl border-2 p-3 text-left ${
-                      c.active ? "border-accent bg-surface" : "border-line hover:border-muted"
-                    }`}
-                  >
-                    <span className="truncate font-semibold">{c.name}</span>
-                    {c.active && <span className="text-sm text-accent">{t.account.active}</span>}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
+      <CrewManager crews={account.crews} reload={reload} />
 
       {error && <p className="text-sm text-no">{error}</p>}
 

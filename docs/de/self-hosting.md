@@ -4,7 +4,7 @@
 
 Cinemood läuft auch ohne Supabase und Vercel auf einem eigenen Rechner (Raspberry Pi, NAS, Server).
 Die Daten liegen dann in einer **SQLite-Datei** oder in **MariaDB/MySQL**. Einen Mail-Login gibt es
-beim Self-Hosten nicht: Alle treten einfach per QR-Code bei, die Crew und der Abspann hängen am Browser
+beim Self-Hosten nicht: Alle treten einfach per QR-Code bei, die Crew und die Watchlist hängen am Browser
 des Hosts.
 
 ## Schnellstart mit Docker (SQLite)

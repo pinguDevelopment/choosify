@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
         account: {
           email: account.email,
           favorites: account.favorites,
-          crews: crews.map((c) => ({ id: c.id, name: c.name, active: c.id === active?.id })),
+          crews: crews.map((c) => ({ id: c.id, name: c.name, owner: c.owner, members: c.members, active: c.id === active?.id })),
           // Crew von diesem Gerät, die noch keinem Konto gehört: kann übernommen werden.
           deviceCrew: device && !device.account_id ? { name: device.name } : null,
         },
