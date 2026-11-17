@@ -217,7 +217,7 @@ log("Rangliste: alle ♥ vor alle dabei");
 if (shots) await host.screenshot({ path: `${shots}/5-zwischenstand.png`, fullPage: true });
 
 // Abspann-Schalter: ist ein echter Schalter, an per Standard, lässt sich aus- und wieder anmachen
-const abspannSwitch = host.getByRole("switch", { name: /Gewinner in den Abspann/ });
+const abspannSwitch = host.getByRole("switch", { name: /Gewinner auf die Watchlist/ });
 assert.equal(await abspannSwitch.getAttribute("aria-checked"), "true", "Abspann-Schalter ist an");
 await abspannSwitch.click();
 assert.equal(await abspannSwitch.getAttribute("aria-checked"), "false", "Abspann-Schalter geht aus");

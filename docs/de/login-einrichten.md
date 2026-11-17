@@ -3,7 +3,7 @@
 # Login einrichten: Google und Magic-Link (Supabase)
 
 Das Konto ist freiwillig und nur für Hosts gedacht. Gäste treten weiterhin nur mit ihrem Namen bei.
-Mit Konto sind Crews, Abspann und Lieblingsdienste auf jedem Gerät da.
+Mit Konto sind Crews, Watchlist und Lieblingsdienste auf jedem Gerät da.
 
 Neue Umgebungsvariablen braucht es nicht. Der Server nutzt die vorhandene `SUPABASE_URL` und den Service-Role-Key.
 
@@ -86,7 +86,7 @@ Das SMTP-Passwort gehört nur ins Supabase-Dashboard, nicht ins Repo und nicht i
 1. `/konto` öffnen, E-Mail eingeben, „Anmelde-Link schicken“.
 2. In der Mail auf den Link tippen und „Jetzt anmelden“ drücken, oder den Code in der App eingeben.
 3. Gibt es auf dem Gerät schon eine Crew, fragt die App, ob sie ins Konto übernommen werden soll.
-4. Auf einem zweiten Gerät anmelden: Crew, Abspann und Lieblingsdienste sind da.
+4. Auf einem zweiten Gerät anmelden: Crew, Watchlist und Lieblingsdienste sind da.
 
 Lokal ohne echte Mails: `AUTH_MOCK=1` in `.env.local`. Dann ist der Code immer `123456` und der Link steht im Server-Log.
 

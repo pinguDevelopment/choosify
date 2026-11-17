@@ -6,7 +6,7 @@
 
 Gemeinsam schnell einen Film finden: Der Host erstellt eine Runde und wählt die Streaming-Anbieter,
 alle joinen per QR-Code, wählen Genres und swipen Filme. Am Ende gewinnt der Film, den alle
-(oder die meisten) sehen wollen. Filme, die die Crew schon gesehen hat, landen im **Abspann**
+(oder die meisten) sehen wollen. Filme, die die Crew schon gesehen hat, landen auf der **Watchlist**
 und werden nicht mehr vorgeschlagen.
 
 Die Oberfläche gibt es auf Deutsch und Englisch (Sprachauswahl oben auf jeder Seite, Standard nach Browsersprache).
@@ -46,6 +46,7 @@ siehe [docs/de/self-hosting.md](docs/de/self-hosting.md).
 - Fernseher (Android TV / Fire TV): [docs/de/android-tv.md](docs/de/android-tv.md), Download unter `/tv-app`
 - Login mit Google oder Mail einrichten: [docs/de/login-einrichten.md](docs/de/login-einrichten.md)
 - Train my Algorithm (eigenen Geschmack trainieren): [docs/de/train-my-algorithm.md](docs/de/train-my-algorithm.md)
+- Gemeinsame Watchlist (z. B. mit Partnerin oder Partner): [docs/de/gemeinsame-watchlist.md](docs/de/gemeinsame-watchlist.md)
 
 ## Sicherheitsmodell (Kurzfassung)
 

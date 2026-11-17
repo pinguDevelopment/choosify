@@ -601,7 +601,7 @@ export async function addAbspann(
     db().selectFrom("abspann").select(countAll()).where("crew_id", "=", crewId).executeTakeFirstOrThrow(),
     db().selectFrom("abspann").select("tmdb_id").where("crew_id", "=", crewId).where("tmdb_id", "=", m.tmdbId).executeTakeFirst(),
   ]);
-  if (!existing && Number(n) >= MAX_ABSPANN) throw new AppError(409, "Der Abspann ist voll");
+  if (!existing && Number(n) >= MAX_ABSPANN) throw new AppError(409, "Die Watchlist ist voll");
   try {
     await upsert(
       "abspann",
@@ -618,7 +618,7 @@ export async function addAbspann(
       ["crew_id", "tmdb_id"],
     );
   } catch (err) {
-    if (isLimitViolation(err)) throw new AppError(409, "Der Abspann ist voll");
+    if (isLimitViolation(err)) throw new AppError(409, "Die Watchlist ist voll");
     throw err;
   }
 }

@@ -35,4 +35,8 @@
     <string name="update_permission_manual">Open your phone\'s settings and allow Cinemood to install unknown apps (Settings → Apps → Cinemood → Install unknown apps). Then choose Install again.</string>
     <string name="login_failed">Signing in with Google didn\'t work. Please try again.</string>
     <string name="login_no_browser">No browser found for signing in with Google.</string>
+    <string name="nav_lobby">Lobby</string>
+    <string name="nav_watchlist">Watchlist</string>
+    <string name="nav_train">Train</string>
+    <string name="nav_account">Account</string>
 </resources>

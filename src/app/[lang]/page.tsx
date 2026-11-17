@@ -21,7 +21,7 @@ export default async function Home() {
       <LoginLinkFallback />
       <CreateRoom />
       <JoinByCode />
-      <Link href="/abspann" className="text-muted underline decoration-line underline-offset-4 hover:text-text">
+      <Link href="/watchlist" className="text-muted underline decoration-line underline-offset-4 hover:text-text">
         {t.home.abspannLink}
       </Link>
       {accountsEnabled() && (

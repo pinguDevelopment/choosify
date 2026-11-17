@@ -15,6 +15,10 @@ const EN: Record<string, string> = {
   "Auf diesem Gerät gibt es keine Crew zum Übernehmen": "There’s no crew on this device to take over",
   "Dein Konto hat schon die maximale Zahl an Crews": "Your account already has the maximum number of crews",
   "Crew nicht gefunden": "Crew not found",
+  "Diese Einladung ist ungültig oder abgelaufen": "This invitation is invalid or has expired",
+  "Diese Crew ist voll": "This crew is full",
+  "Nur wer die Crew angelegt hat, kann andere entfernen": "Only the person who created the crew can remove others",
+  "Du bist allein in dieser Crew": "You’re the only one in this crew",
   "Auf diesem Gerät gibt es noch keine Crew. Starte zuerst eine Runde.": "There’s no crew on this device yet. Start a round first.",
   "Runde nicht gefunden": "Round not found",
   "Du bist dieser Runde nicht beigetreten": "You haven’t joined this round",
@@ -39,7 +43,7 @@ const EN: Record<string, string> = {
   "Interner Fehler": "Internal error",
   "Filmdetails gerade nicht erreichbar": "Movie details aren’t available right now",
   "Dieser Bewertungslink ist ungültig": "This rating link is invalid",
-  "Diesen Film gibt es im Abspann nicht mehr": "This movie is no longer in the credits",
+  "Diesen Film gibt es auf der Watchlist nicht mehr": "This movie is no longer on the watchlist",
   "Diesen Namen hat bei diesem Film schon jemand anderes benutzt": "Someone else already used this name for this movie",
   "Diesen Film haben schon genug Leute bewertet": "Enough people have already rated this movie",
   "Diese Runde ist schon beendet": "This round has already ended",
@@ -62,7 +66,7 @@ const EN: Record<string, string> = {
   "Die Abstimmung ist schon beendet": "Voting has already ended",
   "Gerade läuft keine Stichwahl": "There’s no runoff right now",
   "Dieser Film ist nicht in der Stichwahl": "This movie isn’t in the runoff",
-  "Der Abspann ist voll": "The credits are full",
+  "Die Watchlist ist voll": "The watchlist is full",
 };
 
 const TABLES: Partial<Record<Locale, Record<string, string>>> = { en: EN };

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, type AccountInfo } from "@/lib/api";
 import { shareLink } from "@/lib/share";
 import { Average, StarsDisplay } from "./Stars";
 import { useT } from "@/components/I18nProvider";
@@ -28,10 +28,28 @@ export function AbspannClient({ accounts = true }: { accounts?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const t = useT();
 
+  const [crews, setCrews] = useState<AccountInfo["crews"] | null>(null);
+
   const load = useCallback(() => {
     api<Data>("/api/abspann").then(setData).catch((e) => setError(e.message));
-  }, []);
+    // Mit Konto: eigene und gemeinsame Watchlists zum Umschalten
+    if (accounts) {
+      api<{ account: AccountInfo | null }>("/api/konto")
+        .then((d) => setCrews(d.account?.crews ?? null))
+        .catch(() => setCrews(null));
+    }
+  }, [accounts]);
   useEffect(load, [load]);
+
+  async function switchCrew(id: string) {
+    try {
+      await api("/api/konto", { method: "PATCH", body: { crewId: id } });
+      setOpen(null);
+      load();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
 
   // Suche mit kleiner Verzögerung, damit nicht jeder Tastendruck eine Anfrage auslöst.
   useEffect(() => {
@@ -71,6 +89,7 @@ export function AbspannClient({ accounts = true }: { accounts?: boolean }) {
 
   return (
     <>
+      {crews && <CrewSwitch crews={crews} onSwitch={switchCrew} />}
       <section className="flex flex-col gap-3">
         <h2 className="text-2xl">{t.abspann.add}</h2>
         <input className="input" placeholder={t.abspann.searchPlaceholder} value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -242,5 +261,44 @@ export function Thumb({ src }: { src: string | null }) {
     <img src={src} alt="" className="h-14 w-10 rounded-md object-cover" />
   ) : (
     <div className="h-14 w-10 rounded-md bg-surface-2" />
+  );
+}
+
+/** Zwischen eigener und gemeinsamen Watchlists umschalten (wählt zugleich die Crew für neue Runden). */
+function CrewSwitch({ crews, onSwitch }: { crews: AccountInfo["crews"]; onSwitch: (id: string) => void }) {
+  const t = useT();
+  if (crews.length < 2) {
+    return (
+      <p className="-mt-2 text-sm text-muted">
+        {t.crews.shareHint}{" "}
+        <Link href="/konto" className="underline underline-offset-4 hover:text-text">
+          {t.crews.shareLink}
+        </Link>
+      </p>
+    );
+  }
+  return (
+    <div className="-mt-2 flex flex-col gap-2">
+      <span className="text-sm text-muted">{t.crews.which}</span>
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t.crews.which}>
+        {crews.map((c) => (
+          <button
+            key={c.id}
+            role="radio"
+            aria-checked={c.active}
+            onClick={() => !c.active && onSwitch(c.id)}
+            className={`rounded-full border-2 px-4 py-1.5 text-sm font-semibold ${
+              c.active ? "border-accent bg-accent text-accent-ink" : "border-line text-muted hover:border-muted hover:text-text"
+            }`}
+          >
+            {c.members > 1 && <span aria-hidden>👥 </span>}
+            {c.name}
+          </button>
+        ))}
+      </div>
+      <Link href="/konto" className="self-start text-sm text-muted underline decoration-line underline-offset-4 hover:text-text">
+        {t.crews.manage}
+      </Link>
+    </div>
   );
 }

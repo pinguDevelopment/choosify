@@ -4,10 +4,16 @@
 
 The **Cinemood** app for phones and tablets can do everything the website can: create a round, invite friends
 by QR code, pick genres and vote. On top of that there is **sign-in with Google**: tap once,
-choose your Google account, done. Your crews, the credits and your favorite services are tied to this account
+choose your Google account, done. Your crews, the watchlist and your favorite services are tied to this account
 and are there on every device where you sign in with the same Google account.
 
 Guests need neither the app nor an account. They scan the QR code and join in the browser.
+
+## Navigation bar
+
+At the bottom of the app, one tap switches between **Lobby** (start or join a round), **Watchlist**,
+**Train** (Train my Algorithm) and **Account**. Tapping the section you're already in scrolls to the top.
+While typing (keyboard open), the bar hides.
 
 ## Download and install
 

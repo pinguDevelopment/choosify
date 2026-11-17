@@ -6,6 +6,7 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -69,6 +70,11 @@ public class MainActivity extends Activity {
     private TextView errorText;
     private String loadedBase;
     private boolean mainFrameFailed;
+    private View root;
+    private View nav;
+    /** Navigationsleiste unten: Knopf und Seite, die er öffnet. */
+    private final int[] navIds = {R.id.nav_lobby, R.id.nav_watchlist, R.id.nav_train, R.id.nav_account};
+    private static final String[] NAV_PATHS = {"/", "/watchlist", "/trainieren", "/konto"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,6 +88,7 @@ public class MainActivity extends Activity {
         Button settingsButton = findViewById(R.id.error_settings);
         retryButton.setOnClickListener(v -> reload());
         settingsButton.setOnClickListener(v -> openSettings());
+        setupNav();
 
         setupWebView();
         if (!handleIntent(getIntent())) load(Prefs.homeUrl(this));
@@ -109,6 +116,58 @@ public class MainActivity extends Activity {
             return true;
         }
         return false;
+    }
+
+    // ---- Navigationsleiste ---------------------------------------------------
+
+    private void setupNav() {
+        root = findViewById(R.id.root);
+        nav = findViewById(R.id.nav);
+        for (int i = 0; i < navIds.length; i++) {
+            final String path = NAV_PATHS[i];
+            findViewById(navIds[i]).setOnClickListener(v -> openSection(path));
+        }
+        // Tastatur offen (Name, Suche, Code eintippen): Leiste ausblenden, damit mehr Platz bleibt
+        root.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+            Rect r = new Rect();
+            root.getWindowVisibleDisplayFrame(r);
+            int screen = root.getRootView().getHeight();
+            boolean keyboard = screen > 0 && screen - r.bottom > screen * 0.2;
+            int want = keyboard ? View.GONE : View.VISIBLE;
+            if (nav.getVisibility() != want) nav.setVisibility(want);
+        });
+    }
+
+    private void openSection(String path) {
+        String current = web.getUrl();
+        // Schon genau dort: nach oben scrollen statt neu laden (wie in anderen Apps)
+        if (current != null && !mainFrameFailed) {
+            Uri uri = Uri.parse(current);
+            String p = uri.getPath() == null || uri.getPath().isEmpty() ? "/" : uri.getPath();
+            if (sameServer(uri) && p.equals(path)) {
+                web.evaluateJavascript("window.scrollTo({top:0,behavior:'smooth'})", null);
+                return;
+            }
+        }
+        load(Prefs.baseUrl(this) + path);
+        markSection(path);
+    }
+
+    /** Welcher Bereich der Leiste zu einer Adresse gehört (Runden zählen zur Lobby). */
+    private String sectionOf(Uri uri) {
+        String p = uri.getPath() == null ? "/" : uri.getPath();
+        if (p.startsWith("/watchlist") || p.startsWith("/abspann") || p.startsWith("/bewerten") || p.startsWith("/einladung")) return "/watchlist";
+        if (p.startsWith("/trainieren")) return "/trainieren";
+        if (p.startsWith("/konto")) return "/konto";
+        return "/";
+    }
+
+    private void markSection(String section) {
+        for (int i = 0; i < navIds.length; i++) findViewById(navIds[i]).setSelected(NAV_PATHS[i].equals(section));
+    }
+
+    private void markSection(Uri uri) {
+        if (sameServer(uri)) markSection(sectionOf(uri));
     }
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
@@ -322,9 +381,16 @@ public class MainActivity extends Activity {
             return route(Uri.parse(url));
         }
 
+        /** Auch Seitenwechsel innerhalb der Web-App (ohne neues Laden) markieren den richtigen Bereich. */
+        @Override
+        public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
+            if (url != null) markSection(Uri.parse(url));
+        }
+
         @Override
         public void onPageFinished(WebView view, String url) {
             handler.removeCallbacks(loadTimeout);
+            if (url != null) markSection(Uri.parse(url));
             if (url != null && sameServer(Uri.parse(url))) view.evaluateJavascript(SHARE_POLYFILL, null);
             if (!mainFrameFailed) {
                 errorView.setVisibility(View.GONE);

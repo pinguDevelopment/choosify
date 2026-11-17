@@ -3,7 +3,7 @@
 # Setting up sign-in: Google and magic link (Supabase)
 
 The account is optional and meant only for hosts. Guests still join with just their name.
-With an account, crews, the credits and favorite services are there on every device.
+With an account, crews, the watchlist and favorite services are there on every device.
 
 No new environment variables are needed. The server uses the existing `SUPABASE_URL` and the service role key.
 
@@ -86,7 +86,7 @@ The SMTP password belongs only in the Supabase dashboard, not in the repo and no
 1. Open `/konto`, enter your email, "Send sign-in link".
 2. In the email, tap the link and press "Sign in now", or enter the code in the app.
 3. If the device already has a crew, the app asks whether to move it to the account.
-4. Sign in on a second device: crew, credits and favorite services are there.
+4. Sign in on a second device: crew, watchlist and favorite services are there.
 
 Locally without real emails: `AUTH_MOCK=1` in `.env.local`. The code is then always `123456` and the link appears in the server log.
 
